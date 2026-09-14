@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Attendance System - Multi-Country</title>
+    <!-- Librería SheetJS con soporte para Estilos CSS en Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --success-color: #198754;
+            --excel-color: #107c41;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1550px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        h1 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.8rem;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .selector-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        select.nav-select, input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .btn {
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-save { background-color: var(--success-color); }
+        .btn-save:hover { background-color: #157347; }
+        .btn-excel { background-color: var(--excel-color); }
+        .btn-excel:hover { background-color: #0b5c30; }
+        .btn:active { transform: scale(0.98); }
+
+        .table-responsive {
+            overflow-x: auto;
+            max-height: 70vh;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        /* --- ENCABEZADOS DEFAULT --- */
+        table thead tr th, th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-weight: bold !important;
+        }
+
+        /* --- COLORES DE ENCABEZADOS SEGÚN EL PAÍS --- */
+        .header-guatemala   { background-color: #0d47a1 !important; color: #ffffff !important; } /* Azul Fuerte letras blancas */
+        .header-mexico      { background-color: #1b5e20 !important; color: #ffffff !important; } /* Verde Fuerte */
+        .header-colombia    { background-color: #ff6d00 !important; color: #ffffff !important; } /* Naranja fuerte */
+        .header-panama      { background-color: #800020 !important; color: #ffffff !important; } /* Corinto fuerte letras blancas */
+        .header-jamaica     { background-color: #ffd600 !important; color: #000000 !important; } /* Amarillo fuerte */
+        .header-philippines { background-color: #6a1b9a !important; color: #ffffff !important; } /* Morado */
+
+        select.cell-select, input[type="text"] {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #212529;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 1000;
+        }
+
+        /* --- CELDAS DE HORARIOS (CHECK IN / CHECK OUT) --- */
+        .time-cell {
+            background-color: #f0f0f0 !important; /* Gris muy claro */
+            color: #000000 !important;             /* Letra negra */
+            font-weight: bold !important;          /* Negrita */
+            text-align: center !important;         /* Centrado */
+        }
+
+        /* --- COLORES DE FONDO POR EQUIPO (TEAM) --- */
+        td.team-management     { background-color: #ffcccc !important; color: #000000 !important; font-weight: bold; } /* Rojo claro */
+        td.team-obscases       { background-color: #ffe5b4 !important; color: #000000 !important; font-weight: bold; } /* Naranja claro */
+        td.team-obsphones      { background-color: #ff9900 !important; color: #ffffff !important; font-weight: bold; } /* Naranja fuerte */
+        td.team-eldphones      { background-color: #87ceeb !important; color: #000000 !important; font-weight: bold; } /* Azul marino claro */
+        td.team-eldcases       { background-color: #000080 !important; color: #ffffff !important; font-weight: bold; } /* Azul Marino fuerte */
+        td.team-inscases       { background-color: #e6e6fa !important; color: #000000 !important; font-weight: bold; } /* Morado claro */
+        td.team-insphones      { background-color: #800080 !important; color: #ffffff !important; font-weight: bold; } /* Morado Fuerte */
+        td.team-loadlock       { background-color: #90ee90 !important; color: #000000 !important; font-weight: bold; } /* Verde claro */
+        td.team-intracanadian  { background-color: #e0e0e0 !important; color: #000000 !important; font-weight: bold; } /* Gris Suave */
+
+        /* --- COLORES DE FONDO POR SUPERVISOR --- */
+        td.sup-jorge-garrido       { background-color: #f4d03f !important; color: #000000 !important; font-weight: bold; }
+        td.sup-karen-medinilla     { background-color: #fff9c4 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-jonathan-mejia      { background-color: #b3e5fc !important; color: #000000 !important; font-weight: bold; }
+        td.sup-diego-gonzalez      { background-color: #b3e5fc !important; color: #000000 !important; font-weight: bold; }
+        td.sup-andrea-mansilla     { background-color: #e1bee7 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-kevin-lopez         { background-color: #e1bee7 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-brian-lopez         { background-color: #c8e6c9 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-cristopher-orellana { background-color: #e0e0e0 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-nury-garcia         { background-color: #ff9900 !important; color: #ffffff !important; font-weight: bold; }
+        td.sup-akeem-reid          { background-color: #ffd600 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-seldon-duncombe     { background-color: #ffd600 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-chantal-pancho      { background-color: #ffd600 !important; color: #000000 !important; font-weight: bold; }
+        td.sup-sebastian-chavez    { background-color: #2e7d32 !important; color: #ffffff !important; font-weight: bold; }
+        td.sup-sabdy-alvarez       { background-color: #2e7d32 !important; color: #ffffff !important; font-weight: bold; }
+        td.sup-carlos-rios         { background-color: #2e7d32 !important; color: #ffffff !important; font-weight: bold; }
+        td.sup-eduardo-bellamy     { background-color: #d32f2f !important; color: #ffffff !important; font-weight: bold; }
+        td.sup-jenny-jakosalem     { background-color: #8e24aa !important; color: #ffffff !important; font-weight: bold; }
+
+        /* --- COLORES POR PAÍS --- */
+        .country-guatemala   { background-color: #bbdefb; color: #000; }
+        .country-colombia    { background-color: #ffe0b2; color: #000; }
+        .country-philippines { background-color: #e1bee7; color: #000; }
+        .country-panama      { background-color: #ffcdd2; color: #000; }
+        .country-jamaica     { background-color: #fff9c4; color: #000; }
+        .country-mexico      { background-color: #c8e6c9; color: #000; }
+
+        /* --- COLORES PARA EL SELECTOR DE STATUS --- */
+        select.status-na                          { background-color: #ffffff !important; color: #333 !important; }
+        select.status-attended                    { background-color: #007e33 !important; color: #ffffff !important; }
+        select.status-day-off                     { background-color: #e0e0e0 !important; color: #000000 !important; }
+        select.status-late                        { background-color: #ff8a80 !important; color: #000000 !important; }
+        select.status-late-justified              { background-color: #ff6d00 !important; color: #ffffff !important; }
+        select.status-sick-day                    { background-color: #ffd600 !important; color: #000000 !important; }
+        select.status-medical-appointment         { background-color: #c0ca33 !important; color: #000000 !important; }
+        select.status-escalated-sst               { background-color: #00e5ff !important; color: #000000 !important; }
+        select.status-vacation                    { background-color: #a5d6a7 !important; color: #000000 !important; }
+        select.status-loa                         { background-color: #0288d1 !important; color: #ffffff !important; }
+        select.status-absent                      { background-color: #cc0000 !important; color: #ffffff !important; }
+        select.status-early-out                   { background-color: #90caf9 !important; color: #000000 !important; }
+        select.status-floating-holiday            { background-color: #ce93d8 !important; color: #000000 !important; }
+        select.status-emergency-day-off           { background-color: #aa00ff !important; color: #ffffff !important; }
+        select.status-disciplinary-suspension     { background-color: #616161 !important; color: #ffffff !important; }
+        select.status-us-holiday                  { background-color: #0d47a1 !important; color: #ffffff !important; }
+        select.status-bereavement-leave           { background-color: #000000 !important; color: #ffffff !important; }
+        select.status-marriage-paternity          { background-color: #ff007f !important; color: #ffffff !important; }
+        select.status-legal-process               { background-color: #800020 !important; color: #ffffff !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1 id="pageTitle">Daily Attendance</h1>
+        
+        <div class="controls">
+            <div class="selector-group">
+                <label for="countrySelect">PAÍS / PESTAÑA:</label>
+                <select id="countrySelect" class="nav-select">
+                    <option value="Colombia">Colombia</option>
+                    <option value="Guatemala" selected>Guatemala</option>
+                    <option value="Jamaica">Jamaica</option>
+                    <option value="Mexico">México</option>
+                    <option value="Panama">Panamá</option>
+                    <option value="Philippines">Philippines</option>
+                </select>
+            </div>
+
+            <div class="selector-group">
+                <label for="attendanceDate">FECHA:</label>
+                <input type="date" id="attendanceDate">
+            </div>
+
+            <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
+            <button class="btn btn-excel" onclick="exportToExcel()">📊 Descargar Excel</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr id="tableHeaderRow">
+                    <th>NAME</th>
+                    <th>TEAM</th>
+                    <th>SUPERVISOR</th>
+                    <th style="text-align: center;">CHECK IN (US TIME)</th>
+                    <th style="text-align: center;">CHECK OUT (US TIME)</th>
+                    <th style="min-width: 220px;">STATUS FOR THE DAY</th>
+                    <th style="min-width: 220px;">COMMENTS</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+                <!-- Contenido dinámico -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="toast" class="toast">Guardado exitosamente</div>
+
+<script>
+    const countryData = {
+        "Colombia": [
+            {"name": "Alejandra Manco", "team": "OBS - Cases", "supervisor": "Nury Garcia", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Kevin Cadavid", "team": "OBS - Phones", "supervisor": "Nury Garcia", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Andrea Niño", "team": "OBS - Phones", "supervisor": "Nury Garcia", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Alexander Jaramillo Alvarado", "team": "OBS - Phones", "supervisor": "Nury Garcia", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Luis León", "team": "INS - Cases", "supervisor": "Nury Garcia", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Michelle Daniela Marquez Rodriguez", "team": "INS - Cases", "supervisor": "Nury Garcia", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Nury Garcia", "team": "Management", "supervisor": "Nury Garcia", "checkIn": "10:00:00", "checkOut": "07:00:00"}
+        ],
+        "Guatemala": [
+            {"name": "Jorge Garrido", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Andrea Mansilla", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Daniel E. Hernandez Soto", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Brian Lopez", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Cristopher Orellana", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Karen Medinilla", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Diego Gonzalez", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Marvin Sandoval", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Diana Solis", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Armando Valenzuela", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Jonathan Mejia", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Kevin Lopez", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Emely Hernandez", "team": "OBS - Cases", "supervisor": "Karen Medinilla", "checkIn": "05:00:00", "checkOut": "14:00:00"},
+            {"name": "Pablo Saquilmer", "team": "OBS - Cases", "supervisor": "Karen Medinilla", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Diana Abigail Orozco Alvarez", "team": "OBS - Cases", "supervisor": "Karen Medinilla", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Mynor Daniel Hernandez", "team": "OBS - Phones", "supervisor": "Karen Medinilla", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Ana Lucia Herrera", "team": "OBS - Cases", "supervisor": "Karen Medinilla", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Emilia Mishel Chajon Perez", "team": "OBS - Cases", "supervisor": "Karen Medinilla", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Jorge David Corado Saban", "team": "OBS - Cases", "supervisor": "Karen Medinilla", "checkIn": "07:30:00", "checkOut": "16:30:00"},
+            {"name": "Rudy Herrera", "team": "OBS - Cases", "supervisor": "Karen Medinilla", "checkIn": "11:00:00", "checkOut": "20:00:00"},
+            {"name": "Sebastian Quinonez", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "05:00:00", "checkOut": "14:00:00"},
+            {"name": "Melanie Annelisse Garcia Marin", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Samantha Chinchilla", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Celina Esmeralda Franco Ramirez", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Sharon Olivares", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Edgar Enrique Castillo Linares", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Brandon Vasquez", "team": "ELD - Cases", "supervisor": "Jonathan Mejia", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Josue Sucuc", "team": "ELD - Cases", "supervisor": "Jonathan Mejia", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Luis Ajche", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Froy Cesar Oswaldo Gonzalez Davila", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Jorge Marco Geovani Najera Barillas", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "09:00:00", "checkOut": "06:00:00"},
+            {"name": "Luis Gonzalez", "team": "ELD - Phones", "supervisor": "Jonathan Mejia", "checkIn": "09:00:00", "checkOut": "06:00:00"},
+            {"name": "Sergio David Chigüil Reyes", "team": "ELD - Cases", "supervisor": "Diego Gonzalez", "checkIn": "05:00:00", "checkOut": "14:00:00"},
+            {"name": "Esvin Gomez", "team": "ELD - Phones", "supervisor": "Diego Gonzalez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Iverth Anthony Monterroso", "team": "ELD - Cases", "supervisor": "Diego Gonzalez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Kevin Josue Martinez Acabal", "team": "ELD - Phones", "supervisor": "Diego Gonzalez", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Otto de la Cruz", "team": "INS - Cases", "supervisor": "Andrea Mansilla", "checkIn": "05:30:00", "checkOut": "14:30:00"},
+            {"name": "Manfredo Monterroso", "team": "INS - Phones", "supervisor": "Andrea Mansilla", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Eunice Sir", "team": "INS - Cases", "supervisor": "Andrea Mansilla", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Acsa Marroquin", "team": "INS - Phones", "supervisor": "Andrea Mansilla", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Ariel Antonio Yaegui Mazate", "team": "INS - Cases", "supervisor": "Andrea Mansilla", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Kener Lee", "team": "INS - Phones", "supervisor": "Andrea Mansilla", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Kathering Santos", "team": "INS - Cases", "supervisor": "Andrea Mansilla", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Juan Carlos Avedaño", "team": "INS - Cases", "supervisor": "Andrea Mansilla", "checkIn": "10:00:00", "checkOut": "19:00:00"},
+            {"name": "Ana Maria Melendez", "team": "INS - Phones", "supervisor": "Kevin Lopez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Monica Lopez", "team": "INS - Cases", "supervisor": "Kevin Lopez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Gustavo Lopez", "team": "INS - Phones", "supervisor": "Kevin Lopez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Lynda Isabel Escobedo de Leon", "team": "INS - Phones", "supervisor": "Kevin Lopez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Marco Ovalle", "team": "INS - Cases", "supervisor": "Kevin Lopez", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Cesar David Lopez Colaj", "team": "INS - Phones", "supervisor": "Kevin Lopez", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Julio Cortez", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "05:00:00", "checkOut": "14:00:00"},
+            {"name": "Alex Margarito Tum Coyote", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "05:00:00", "checkOut": "14:00:00"},
+            {"name": "Omar Gomez", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Luis Escobar", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "06:30:00", "checkOut": "15:30:00"},
+            {"name": "Andy Pineda", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "06:30:00", "checkOut": "15:30:00"},
+            {"name": "Edgar Palomo", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "06:30:00", "checkOut": "15:30:00"},
+            {"name": "Jonathan Pirir", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Yossi Martinez", "team": "Load Lock", "supervisor": "Brian Lopez", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Jose Arriaga", "team": "Intra Canadian", "supervisor": "Cristopher Orellana", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Manny Juarez", "team": "Intra Canadian", "supervisor": "Cristopher Orellana", "checkIn": "08:00:00", "checkOut": "17:00:00"}
+        ],
+        "Jamaica": [
+            {"name": "Kenford Morris", "team": "ELD - Phones", "supervisor": "Seldon Duncombe", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Daneil Facey", "team": "OBS - Phones", "supervisor": "Akeem Reid", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Shanique Kelly", "team": "OBS - Phones", "supervisor": "Chantal Pancho", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Vashaun Thompson", "team": "OBS - Phones", "supervisor": "Chantal Pancho", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Rohanya Gordon", "team": "OBS - Phones", "supervisor": "Chantal Pancho", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Michelle Salmon", "team": "OBS - Phones", "supervisor": "Chantal Pancho", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Alex Scarlett", "team": "OBS - Phones", "supervisor": "Akeem Reid", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Shenique Thompson", "team": "OBS - Phones", "supervisor": "Akeem Reid", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Kascia Webb", "team": "OBS - Phones", "supervisor": "Akeem Reid", "checkIn": "10:00:00", "checkOut": "19:00:00"},
+            {"name": "Leona Wallace", "team": "OBS - Phones", "supervisor": "Akeem Reid", "checkIn": "10:00:00", "checkOut": "19:00:00"},
+            {"name": "Kia Francis", "team": "ELD - Phones", "supervisor": "Chantal Pancho", "checkIn": "10:00:00", "checkOut": "19:00:00"},
+            {"name": "Tevin Smallwood", "team": "ELD - Cases", "supervisor": "Chantal Pancho", "checkIn": "10:00:00", "checkOut": "19:00:00"},
+            {"name": "Shiyan Lee", "team": "ELD - Phones", "supervisor": "Chantal Pancho", "checkIn": "10:00:00", "checkOut": "19:00:00"},
+            {"name": "Akeem Reid", "team": "Management", "supervisor": "Akeem Reid", "checkIn": "10:00:00", "checkOut": "19:00:00"},
+            {"name": "Abigayle Gentles", "team": "Management", "supervisor": "Akeem Reid", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Sheldon Duncombe", "team": "Management", "supervisor": "Akeem Reid", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Chantal Pancho", "team": "Management", "supervisor": "Akeem Reid", "checkIn": "10:00:00", "checkOut": "19:00:00"}
+        ],
+        "Mexico": [
+            {"name": "Maria Fernanda Saucedo Marquez", "team": "TFX", "supervisor": "Sebastian Chavez", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Fernando Daniel Ramirez Rodriguez", "team": "TFX", "supervisor": "Sebastian Chavez", "checkIn": "05:00:00", "checkOut": "14:00:00"},
+            {"name": "Galilea Danae Gutierrez Fregoso", "team": "OBS - Cases", "supervisor": "Carlos Rios", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Alondra Mendoza Pardo", "team": "INS - Cases", "supervisor": "Sabdy Alvarez", "checkIn": "07:30:00", "checkOut": "04:30:00"},
+            {"name": "Daniel Sebastian Pelayo Zarate", "team": "ELD - Phones", "supervisor": "Sabdy Alvarez", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Fernando García Rodriguez", "team": "OBS - Cases", "supervisor": "Sabdy Alvarez", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Danae Castillo Fregoso", "team": "ELD - Phones", "supervisor": "Sabdy Alvarez", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Omar Ulises Guzman Jímenez", "team": "OBS - Phones", "supervisor": "Carlos Rios", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Joseth Belem Huerta Rodriguez", "team": "INS - Cases", "supervisor": "Carlos Rios", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Alberto Arana Lopez", "team": "OBS - Phones", "supervisor": "Carlos Rios", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Israel Calderón Arias", "team": "OBS - Phones", "supervisor": "Carlos Rios", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Cesar Alexis Sanchez Larios", "team": "ELD - Cases", "supervisor": "Carlos Rios", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Kevin Gordoa Ibarra", "team": "ELD - Phones", "supervisor": "Carlos Rios", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Raul Tornel Garcia", "team": "OBS - Phones", "supervisor": "Sabdy Alvarez", "checkIn": "08:00:00", "checkOut": "17:00:00"},
+            {"name": "Rafael Emilio Lopez Alvarez", "team": "OBS - Phones", "supervisor": "Carlos Rios", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Sabdy Alvarez", "team": "Management", "supervisor": "Sabdy Alvarez", "checkIn": "06:00:00", "checkOut": "03:00:00"},
+            {"name": "Sebastian Chavez", "team": "Management", "supervisor": "Sebastian Chavez", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Carlos Rios", "team": "Management", "supervisor": "Sabdy Alvarez", "checkIn": "09:00:00", "checkOut": "18:00:00"},
+            {"name": "Irving Reyes Neri", "team": "Management", "supervisor": "Sabdy Alvarez", "checkIn": "06:00:00", "checkOut": "15:00:00"}
+        ],
+        "Panama": [
+            {"name": "Dean Spencer", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "06:00:00", "checkOut": "15:30:00"},
+            {"name": "Keyren Fuertes", "team": "INS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "06:00:00", "checkOut": "15:30:00"},
+            {"name": "Stephanie Temple", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "07:00:00", "checkOut": "16:30:00"},
+            {"name": "Kellyneth Estrada", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "07:00:00", "checkOut": "16:30:00"},
+            {"name": "Zinedine Moscote", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "08:00:00", "checkOut": "17:30:00"},
+            {"name": "Alexander Santamaria", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "07:00:00", "checkOut": "16:30:00"},
+            {"name": "Jesus Rios", "team": "ELD - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "08:00:00", "checkOut": "17:30:00"},
+            {"name": "Marie Claire Perez", "team": "ELD - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "08:30:00", "checkOut": "18:00:00"},
+            {"name": "Sonia Jimenez", "team": "ELD - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "09:30:00", "checkOut": "19:00:00"},
+            {"name": "Felix Torres", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "09:30:00", "checkOut": "19:00:00"},
+            {"name": "Shindana Redwood", "team": "INS - Cases", "supervisor": "Eduardo Bellamy", "checkIn": "08:00:00", "checkOut": "17:30:00"},
+            {"name": "Jose Del Carmen Rodriguez Rosas", "team": "ELD - Cases", "supervisor": "Eduardo Bellamy", "checkIn": "23:00:00", "checkOut": "20:00:00"},
+            {"name": "Marielys Tejada", "team": "INS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "12:00:00", "checkOut": "20:00:00"},
+            {"name": "Lelburm Gordon", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "05:00:00", "checkOut": "14:00:00"},
+            {"name": "Benneth Smith", "team": "ELD - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "07:30:00", "checkOut": "17:00:00"},
+            {"name": "Kevin Williams", "team": "OBS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "09:30:00", "checkOut": "19:00:00"},
+            {"name": "Marcos Anibal Botello Espinosa", "team": "INS - Phones", "supervisor": "Eduardo Bellamy", "checkIn": "09:30:00", "checkOut": "19:00:00"},
+            {"name": "Daniela Cerezo", "team": "Management", "supervisor": "Eduardo Bellamy", "checkIn": "08:00:00", "checkOut": "18:00:00"},
+            {"name": "Eduardo Bellamy", "team": "Management", "supervisor": "Eduardo Bellamy", "checkIn": "09:00:00", "checkOut": "19:00:00"},
+            {"name": "Osvaldo Flores", "team": "Management", "supervisor": "Eduardo Bellamy", "checkIn": "06:30:00", "checkOut": "15:30:00"}
+        ],
+        "Philippines": [
+            {"name": "Jenny Jakosalem", "team": "Management", "supervisor": "Jenny Jakosalem", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Marianne Abigail Velasco", "team": "OBS - Cases", "supervisor": "Jenny Jakosalem", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Mary Joy Rafols", "team": "OBS - Cases", "supervisor": "Jenny Jakosalem", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Aaron Gozum", "team": "Load Lock", "supervisor": "Jenny Jakosalem", "checkIn": "06:00:00", "checkOut": "15:00:00"},
+            {"name": "Kyle Andrei Abad", "team": "OBS - Cases", "supervisor": "Jenny Jakosalem", "checkIn": "11:00:00", "checkOut": "20:00:00"},
+            {"name": "Ann Jules Dayuta", "team": "OBS - Cases", "supervisor": "Jenny Jakosalem", "checkIn": "11:00:00", "checkOut": "20:00:00"}
+        ]
+    };
+
+    const statusOptions = [
+        "", "N/A", "Attended", "Day Off", "Late", "Late Justified (Back Up Doc.)",
+        "Sick Day", "Schedule Medical Appointment", "Escalated to SST", "Vacation",
+        "LOA", "Absent, No Call/ No Show", "Early Out", "Floating Holiday",
+        "Emergency Day Off", "Disciplinary Suspension", "US Holiday",
+        "Bereavement Leave", "Marriage/Ma/Paternity Leaving", "Legal Process"
+    ];
+
+    const statusClassMap = {
+        "N/A": "status-na", "Attended": "status-attended", "Day Off": "status-day-off",
+        "Late": "status-late", "Late Justified (Back Up Doc.)": "status-late-justified",
+        "Sick Day": "status-sick-day", "Schedule Medical Appointment": "status-medical-appointment",
+        "Escalated to SST": "status-escalated-sst", "Vacation": "status-vacation",
+        "LOA": "status-loa", "Absent, No Call/ No Show": "status-absent",
+        "Early Out": "status-early-out", "Floating Holiday": "status-floating-holiday",
+        "Emergency Day Off": "status-emergency-day-off", "Disciplinary Suspension": "status-disciplinary-suspension",
+        "US Holiday": "status-us-holiday", "Bereavement Leave": "status-bereavement-leave",
+        "Marriage/Ma/Paternity Leaving": "status-marriage-paternity", "Legal Process": "status-legal-process"
+    };
+
+    const countryClassMap = {
+        "Guatemala": "country-guatemala", "Colombia": "country-colombia",
+        "Philippines": "country-philippines", "Panama": "country-panama",
+        "Jamaica": "country-jamaica", "Mexico": "country-mexico"
+    };
+
+    function cleanString(str) {
+        return str ? str.toString().toUpperCase().replace(/[^A-Z]/g, '') : '';
+    }
+
+    function getTeamClass(teamName) {
+        const clean = cleanString(teamName);
+
+        if (clean === 'MANAGEMENT') return 'team-management';
+        if (clean === 'OBSCASES') return 'team-obscases';
+        if (clean === 'OBSPHONES') return 'team-obsphones';
+        if (clean === 'ELDPHONES') return 'team-eldphones';
+        if (clean === 'ELDCASES') return 'team-eldcases';
+        if (clean === 'INSCASES') return 'team-inscases';
+        if (clean === 'INSPHONES') return 'team-insphones';
+        if (clean === 'LOADLOCK') return 'team-loadlock';
+        if (clean === 'INTRACANADIAN') return 'team-intracanadian';
+
+        return '';
+    }
+
+    function getSupervisorClass(supName) {
+        const clean = cleanString(supName);
+
+        if (clean === 'JORGEGARRIDO') return 'sup-jorge-garrido';
+        if (clean === 'KARENMEDINILLA') return 'sup-karen-medinilla';
+        if (clean === 'JONATHANMEJIA') return 'sup-jonathan-mejia';
+        if (clean === 'DIEGOGONZALEZ') return 'sup-diego-gonzalez';
+        if (clean === 'ANDREAMANSILLA') return 'sup-andrea-mansilla';
+        if (clean === 'KEVINLOPEZ') return 'sup-kevin-lopez';
+        if (clean === 'BRIANLOPEZ') return 'sup-brian-lopez';
+        if (clean === 'CRISTOPHERORELLANA') return 'sup-cristopher-orellana';
+        if (clean === 'NURYGARCIA') return 'sup-nury-garcia';
+        if (clean === 'AKEEMREID') return 'sup-akeem-reid';
+        if (clean === 'SELDONDUNCOMBE' || clean === 'SHELDONDUNCOMBE') return 'sup-seldon-duncombe';
+        if (clean === 'CHANTALPANCHO') return 'sup-chantal-pancho';
+        if (clean === 'SEBASTIANCHAVEZ') return 'sup-sebastian-chavez';
+        if (clean === 'SABDYALVAREZ') return 'sup-sabdy-alvarez';
+        if (clean === 'CARLOSRIOS') return 'sup-carlos-rios';
+        if (clean === 'EDUARDOBELLAMY') return 'sup-eduardo-bellamy';
+        if (clean === 'JENNYJAKOSALEM') return 'sup-jenny-jakosalem';
+
+        return '';
+    }
+
+    function getHeaderClass(countryName) {
+        const clean = cleanString(countryName);
+        if (clean === 'GUATEMALA') return 'header-guatemala';
+        if (clean === 'MEXICO') return 'header-mexico';
+        if (clean === 'COLOMBIA') return 'header-colombia';
+        if (clean === 'PANAMA') return 'header-panama';
+        if (clean === 'JAMAICA') return 'header-jamaica';
+        if (clean === 'PHILIPPINES') return 'header-philippines';
+        return '';
+    }
+
+    function getHeaderExcelStyle(countryName) {
+        const clean = cleanString(countryName);
+        if (clean === 'GUATEMALA') return { fill: "0D47A1", color: "FFFFFF" }; // Azul Fuerte letras blancas
+        if (clean === 'MEXICO') return { fill: "1B5E20", color: "FFFFFF" };    // Verde Fuerte
+        if (clean === 'COLOMBIA') return { fill: "FF6D00", color: "FFFFFF" };  // Naranja fuerte
+        if (clean === 'PANAMA') return { fill: "800020", color: "FFFFFF" };    // Corinto fuerte letras blancas
+        if (clean === 'JAMAICA') return { fill: "FFD600", color: "000000" };   // Amarillo fuerte
+        if (clean === 'PHILIPPINES') return { fill: "6A1B9A", color: "FFFFFF" };// Morado
+        return { fill: "808080", color: "000000" };
+    }
+
+    function getTeamExcelStyle(teamName) {
+        const clean = cleanString(teamName);
+
+        if (clean === 'MANAGEMENT') return { fill: "FFCCCC", color: "000000" };
+        if (clean === 'OBSCASES') return { fill: "FFE5B4", color: "000000" };
+        if (clean === 'OBSPHONES') return { fill: "FF9900", color: "FFFFFF" };
+        if (clean === 'ELDPHONES') return { fill: "87CEEB", color: "000000" };
+        if (clean === 'ELDCASES') return { fill: "000080", color: "FFFFFF" };
+        if (clean === 'INSCASES') return { fill: "E6E6FA", color: "000000" };
+        if (clean === 'INSPHONES') return { fill: "800080", color: "FFFFFF" };
+        if (clean === 'LOADLOCK') return { fill: "90EE90", color: "000000" };
+        if (clean === 'INTRACANADIAN') return { fill: "E0E0E0", color: "000000" };
+
+        return null;
+    }
+
+    function getSupervisorExcelStyle(supName) {
+        const clean = cleanString(supName);
+
+        if (clean === 'JORGEGARRIDO') return { fill: "F4D03F", color: "000000" };
+        if (clean === 'KARENMEDINILLA') return { fill: "FFF9C4", color: "000000" };
+        if (clean === 'JONATHANMEJIA') return { fill: "B3E5FC", color: "000000" };
+        if (clean === 'DIEGOGONZALEZ') return { fill: "B3E5FC", color: "000000" };
+        if (clean === 'ANDREAMANSILLA') return { fill: "E1BEE7", color: "000000" };
+        if (clean === 'KEVINLOPEZ') return { fill: "E1BEE7", color: "000000" };
+        if (clean === 'BRIANLOPEZ') return { fill: "C8E6C9", color: "000000" };
+        if (clean === 'CRISTOPHERORELLANA') return { fill: "E0E0E0", color: "000000" };
+        if (clean === 'NURYGARCIA') return { fill: "FF9900", color: "FFFFFF" };
+        if (clean === 'AKEEMREID') return { fill: "FFD600", color: "000000" };
+        if (clean === 'SELDONDUNCOMBE' || clean === 'SHELDONDUNCOMBE') return { fill: "FFD600", color: "000000" };
+        if (clean === 'CHANTALPANCHO') return { fill: "FFD600", color: "000000" };
+        if (clean === 'SEBASTIANCHAVEZ') return { fill: "2E7D32", color: "FFFFFF" };
+        if (clean === 'SABDYALVAREZ') return { fill: "2E7D32", color: "FFFFFF" };
+        if (clean === 'CARLOSRIOS') return { fill: "2E7D32", color: "FFFFFF" };
+        if (clean === 'EDUARDOBELLAMY') return { fill: "D32F2F", color: "FFFFFF" };
+        if (clean === 'JENNYJAKOSALEM') return { fill: "8E24AA", color: "FFFFFF" };
+
+        return null;
+    }
+
+    const countrySelect = document.getElementById('countrySelect');
+    const dateInput = document.getElementById('attendanceDate');
+    const tableBody = document.getElementById('attendanceTableBody');
+    const pageTitle = document.getElementById('pageTitle');
+    const tableHeaderRow = document.getElementById('tableHeaderRow');
+
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
+
+    renderCurrentTable();
+
+    countrySelect.addEventListener('change', renderCurrentTable);
+    dateInput.addEventListener('change', renderCurrentTable);
+
+    function updateSelectColor(selectElement) {
+        Object.values(statusClassMap).forEach(cls => selectElement.classList.remove(cls));
+        const val = selectElement.value;
+        if (statusClassMap[val]) {
+            selectElement.classList.add(statusClassMap[val]);
+        }
+    }
+
+    function renderCurrentTable() {
+        const country = countrySelect.value;
+        const selectedDate = dateInput.value;
+        
+        pageTitle.innerText = `Daily Attendance - ${countrySelect.options[countrySelect.selectedIndex].text}`;
+        
+        // Actualizar la clase de la fila de la cabecera según el País seleccionado
+        const headerClass = getHeaderClass(country);
+        const thList = tableHeaderRow.querySelectorAll('th');
+        thList.forEach(th => {
+            th.className = headerClass;
+        });
+
+        tableBody.innerHTML = '';
+
+        const storageKey = `attendance_${country}_${selectedDate}`;
+        const savedData = JSON.parse(localStorage.getItem(storageKey)) || {};
+
+        const employees = countryData[country] || [];
+        const countryClass = countryClassMap[country] || '';
+
+        employees.forEach((emp, index) => {
+            const row = document.createElement('tr');
+            const savedStatus = savedData[index] ? savedData[index].status : '';
+            const savedComments = savedData[index] ? savedData[index].comments : '';
+
+            let optionsHtml = statusOptions.map(opt => 
+                `<option value="${opt}" ${savedStatus === opt ? 'selected' : ''}>${opt}</option>`
+            ).join('');
+
+            const teamClass = getTeamClass(emp.team);
+            const supClass = getSupervisorClass(emp.supervisor);
+
+            row.innerHTML = `
+                <td class="${countryClass}"><strong>${emp.name}</strong></td>
+                <td class="${teamClass}">${emp.team}</td>
+                <td class="${supClass}">${emp.supervisor}</td>
+                <td class="time-cell">${emp.checkIn}</td>
+                <td class="time-cell">${emp.checkOut}</td>
+                <td>
+                    <select class="cell-select" id="status_${index}" onchange="updateSelectColor(this)">
+                        ${optionsHtml}
+                    </select>
+                </td>
+                <td>
+                    <input type="text" id="comments_${index}" value="${savedComments}" placeholder="Escribe un comentario...">
+                </td>
+            `;
+            tableBody.appendChild(row);
+
+            const selectElem = document.getElementById(`status_${index}`);
+            updateSelectColor(selectElem);
+        });
+    }
+
+    function saveData() {
+        const country = countrySelect.value;
+        const selectedDate = dateInput.value;
+
+        if (!selectedDate) {
+            alert("Por favor selecciona una fecha.");
+            return;
+        }
+
+        const employees = countryData[country] || [];
+        const dataToSave = {};
+
+        employees.forEach((_, index) => {
+            const status = document.getElementById(`status_${index}`).value;
+            const comments = document.getElementById(`comments_${index}`).value;
+
+            dataToSave[index] = { status: status, comments: comments };
+        });
+
+        const storageKey = `attendance_${country}_${selectedDate}`;
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+
+        showToast(`¡Información de ${country} guardada para el ${selectedDate}!`);
+    }
+
+    function exportToExcel() {
+        const country = countrySelect.value;
+        const selectedDate = dateInput.value;
+
+        if (!selectedDate) {
+            alert("Por favor selecciona una fecha.");
+            return;
+        }
+
+        const employees = countryData[country] || [];
+
+        const headers = ["COUNTRY", "NAME", "TEAM", "SUPERVISOR", "CHECK IN (US TIME)", "CHECK OUT (US TIME)", "STATUS FOR THE DAY", "COMMENTS", "DATE"];
+        const rows = [headers];
+
+        employees.forEach((emp, index) => {
+            const statusVal = document.getElementById(`status_${index}`) ? document.getElementById(`status_${index}`).value : '';
+            const commentsVal = document.getElementById(`comments_${index}`) ? document.getElementById(`comments_${index}`).value : '';
+
+            rows.push([
+                country,
+                emp.name,
+                emp.team,
+                emp.supervisor,
+                emp.checkIn,
+                emp.checkOut,
+                statusVal,
+                commentsVal,
+                selectedDate
+            ]);
+        });
+
+        const worksheet = XLSX.utils.aoa_to_sheet(rows);
+
+        // APLICAR ESTILO PERSONALIZADO DE CABECERA SEGÚN EL PAÍS EN EXCEL
+        const headerStyle = getHeaderExcelStyle(country);
+        headers.forEach((_, colIndex) => {
+            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIndex });
+            if (worksheet[cellAddress]) {
+                worksheet[cellAddress].s = {
+                    fill: { fgColor: { rgb: headerStyle.fill } },
+                    font: { bold: true, color: { rgb: headerStyle.color } },
+                    alignment: { horizontal: "center", vertical: "center" }
+                };
+            }
+        });
+
+        // APLICAR ESTILOS A LAS FILAS DE DATOS EN EXCEL
+        employees.forEach((emp, rowIndex) => {
+            const excelRow = rowIndex + 1;
+
+            // ESTILO PARA LAS CELDAS DE EQUIPO (TEAM)
+            const teamStyle = getTeamExcelStyle(emp.team);
+            if (teamStyle) {
+                const teamCellAddr = XLSX.utils.encode_cell({ r: excelRow, c: 2 });
+                if (worksheet[teamCellAddr]) {
+                    worksheet[teamCellAddr].s = {
+                        fill: { fgColor: { rgb: teamStyle.fill } },
+                        font: { bold: true, color: { rgb: teamStyle.color } }
+                    };
+                }
+            }
+
+            // ESTILO PARA LAS CELDAS DE SUPERVISOR
+            const supStyle = getSupervisorExcelStyle(emp.supervisor);
+            if (supStyle) {
+                const supCellAddr = XLSX.utils.encode_cell({ r: excelRow, c: 3 });
+                if (worksheet[supCellAddr]) {
+                    worksheet[supCellAddr].s = {
+                        fill: { fgColor: { rgb: supStyle.fill } },
+                        font: { bold: true, color: { rgb: supStyle.color } }
+                    };
+                }
+            }
+
+            // ESTILO PARA CELDAS CHECK IN Y CHECK OUT EN EXCEL
+            const checkInAddr = XLSX.utils.encode_cell({ r: excelRow, c: 4 });
+            const checkOutAddr = XLSX.utils.encode_cell({ r: excelRow, c: 5 });
+            const timeExcelStyle = {
+                fill: { fgColor: { rgb: "F0F0F0" } },
+                font: { bold: true, color: { rgb: "000000" } },
+                alignment: { horizontal: "center", vertical: "center" }
+            };
+
+            if (worksheet[checkInAddr]) worksheet[checkInAddr].s = timeExcelStyle;
+            if (worksheet[checkOutAddr]) worksheet[checkOutAddr].s = timeExcelStyle;
+        });
+
+        worksheet['!cols'] = [
+            { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 20 },
+            { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 35 }, { wch: 15 }
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, country);
+
+        const fileName = `Daily_Attendance_${country}_${selectedDate}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.innerText = message;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+</script>
+
+</body>
+</html>
