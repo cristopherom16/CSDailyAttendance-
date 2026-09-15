@@ -11,6 +11,8 @@
             --primary-color: #0d6efd;
             --success-color: #198754;
             --excel-color: #107c41;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
             --bg-color: #f4f6f9;
             --card-bg: #ffffff;
             --border-color: #dee2e6;
@@ -94,6 +96,46 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn:active { transform: scale(0.98); }
 
+        /* --- DASHBOARD COUNTERS --- */
+        .stats-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 220px;
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 5px solid var(--primary-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .stat-card.attended { border-left-color: var(--success-color); }
+        .stat-card.lates { border-left-color: var(--warning-color); }
+        .stat-card.not-present { border-left-color: var(--danger-color); }
+
+        .stat-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
         .table-responsive {
             overflow-x: auto;
             max-height: 70vh;
@@ -120,12 +162,12 @@
         }
 
         /* --- COLORES DE ENCABEZADOS SEGÚN EL PAÍS --- */
-        .header-guatemala   { background-color: #0d47a1 !important; color: #ffffff !important; } /* Azul Fuerte letras blancas */
-        .header-mexico      { background-color: #1b5e20 !important; color: #ffffff !important; } /* Verde Fuerte */
-        .header-colombia    { background-color: #ff6d00 !important; color: #ffffff !important; } /* Naranja fuerte */
-        .header-panama      { background-color: #800020 !important; color: #ffffff !important; } /* Corinto fuerte letras blancas */
-        .header-jamaica     { background-color: #ffd600 !important; color: #000000 !important; } /* Amarillo fuerte */
-        .header-philippines { background-color: #6a1b9a !important; color: #ffffff !important; } /* Morado */
+        .header-guatemala   { background-color: #0d47a1 !important; color: #ffffff !important; }
+        .header-mexico      { background-color: #1b5e20 !important; color: #ffffff !important; }
+        .header-colombia    { background-color: #ff6d00 !important; color: #ffffff !important; }
+        .header-panama      { background-color: #800020 !important; color: #ffffff !important; }
+        .header-jamaica     { background-color: #ffd600 !important; color: #000000 !important; }
+        .header-philippines { background-color: #6a1b9a !important; color: #ffffff !important; }
 
         select.cell-select, input[type="text"] {
             width: 100%;
@@ -153,22 +195,22 @@
 
         /* --- CELDAS DE HORARIOS (CHECK IN / CHECK OUT) --- */
         .time-cell {
-            background-color: #f0f0f0 !important; /* Gris muy claro */
-            color: #000000 !important;             /* Letra negra */
-            font-weight: bold !important;          /* Negrita */
-            text-align: center !important;         /* Centrado */
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            font-weight: bold !important;
+            text-align: center !important;
         }
 
         /* --- COLORES DE FONDO POR EQUIPO (TEAM) --- */
-        td.team-management     { background-color: #ffcccc !important; color: #000000 !important; font-weight: bold; } /* Rojo claro */
-        td.team-obscases       { background-color: #ffe5b4 !important; color: #000000 !important; font-weight: bold; } /* Naranja claro */
-        td.team-obsphones      { background-color: #ff9900 !important; color: #ffffff !important; font-weight: bold; } /* Naranja fuerte */
-        td.team-eldphones      { background-color: #87ceeb !important; color: #000000 !important; font-weight: bold; } /* Azul marino claro */
-        td.team-eldcases       { background-color: #000080 !important; color: #ffffff !important; font-weight: bold; } /* Azul Marino fuerte */
-        td.team-inscases       { background-color: #e6e6fa !important; color: #000000 !important; font-weight: bold; } /* Morado claro */
-        td.team-insphones      { background-color: #800080 !important; color: #ffffff !important; font-weight: bold; } /* Morado Fuerte */
-        td.team-loadlock       { background-color: #90ee90 !important; color: #000000 !important; font-weight: bold; } /* Verde claro */
-        td.team-intracanadian  { background-color: #e0e0e0 !important; color: #000000 !important; font-weight: bold; } /* Gris Suave */
+        td.team-management     { background-color: #ffcccc !important; color: #000000 !important; font-weight: bold; }
+        td.team-obscases       { background-color: #ffe5b4 !important; color: #000000 !important; font-weight: bold; }
+        td.team-obsphones      { background-color: #ff9900 !important; color: #ffffff !important; font-weight: bold; }
+        td.team-eldphones      { background-color: #87ceeb !important; color: #000000 !important; font-weight: bold; }
+        td.team-eldcases       { background-color: #000080 !important; color: #ffffff !important; font-weight: bold; }
+        td.team-inscases       { background-color: #e6e6fa !important; color: #000000 !important; font-weight: bold; }
+        td.team-insphones      { background-color: #800080 !important; color: #ffffff !important; font-weight: bold; }
+        td.team-loadlock       { background-color: #90ee90 !important; color: #000000 !important; font-weight: bold; }
+        td.team-intracanadian  { background-color: #e0e0e0 !important; color: #000000 !important; font-weight: bold; }
 
         /* --- COLORES DE FONDO POR SUPERVISOR --- */
         td.sup-jorge-garrido       { background-color: #f4d03f !important; color: #000000 !important; font-weight: bold; }
@@ -214,6 +256,7 @@
         select.status-emergency-day-off           { background-color: #aa00ff !important; color: #ffffff !important; }
         select.status-disciplinary-suspension     { background-color: #616161 !important; color: #ffffff !important; }
         select.status-us-holiday                  { background-color: #0d47a1 !important; color: #ffffff !important; }
+        select.status-country-holiday             { background-color: #00b0ff !important; color: #ffffff !important; } /* CELESTE FUERTE */
         select.status-bereavement-leave           { background-color: #000000 !important; color: #ffffff !important; }
         select.status-marriage-paternity          { background-color: #ff007f !important; color: #ffffff !important; }
         select.status-legal-process               { background-color: #800020 !important; color: #ffffff !important; }
@@ -245,6 +288,22 @@
 
             <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
             <button class="btn btn-excel" onclick="exportToExcel()">📊 Descargar Excel</button>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE MÉTRICAS Y CONTADORES -->
+    <div class="stats-container">
+        <div class="stat-card attended">
+            <div class="stat-title">Total Agents Attended on time</div>
+            <div class="stat-value" id="countAttended">0</div>
+        </div>
+        <div class="stat-card lates">
+            <div class="stat-title">Total of Lates</div>
+            <div class="stat-value" id="countLates">0</div>
+        </div>
+        <div class="stat-card not-present">
+            <div class="stat-title">Total of Agents not Present</div>
+            <div class="stat-value" id="countNotPresent">0</div>
         </div>
     </div>
 
@@ -419,7 +478,7 @@
         "", "N/A", "Attended", "Day Off", "Late", "Late Justified (Back Up Doc.)",
         "Sick Day", "Schedule Medical Appointment", "Escalated to SST", "Vacation",
         "LOA", "Absent, No Call/ No Show", "Early Out", "Floating Holiday",
-        "Emergency Day Off", "Disciplinary Suspension", "US Holiday",
+        "Emergency Day Off", "Disciplinary Suspension", "US Holiday", "Country Holiday",
         "Bereavement Leave", "Marriage/Ma/Paternity Leaving", "Legal Process"
     ];
 
@@ -431,7 +490,8 @@
         "LOA": "status-loa", "Absent, No Call/ No Show": "status-absent",
         "Early Out": "status-early-out", "Floating Holiday": "status-floating-holiday",
         "Emergency Day Off": "status-emergency-day-off", "Disciplinary Suspension": "status-disciplinary-suspension",
-        "US Holiday": "status-us-holiday", "Bereavement Leave": "status-bereavement-leave",
+        "US Holiday": "status-us-holiday", "Country Holiday": "status-country-holiday",
+        "Bereavement Leave": "status-bereavement-leave",
         "Marriage/Ma/Paternity Leaving": "status-marriage-paternity", "Legal Process": "status-legal-process"
     };
 
@@ -498,12 +558,12 @@
 
     function getHeaderExcelStyle(countryName) {
         const clean = cleanString(countryName);
-        if (clean === 'GUATEMALA') return { fill: "0D47A1", color: "FFFFFF" }; // Azul Fuerte letras blancas
-        if (clean === 'MEXICO') return { fill: "1B5E20", color: "FFFFFF" };    // Verde Fuerte
-        if (clean === 'COLOMBIA') return { fill: "FF6D00", color: "FFFFFF" };  // Naranja fuerte
-        if (clean === 'PANAMA') return { fill: "800020", color: "FFFFFF" };    // Corinto fuerte letras blancas
-        if (clean === 'JAMAICA') return { fill: "FFD600", color: "000000" };   // Amarillo fuerte
-        if (clean === 'PHILIPPINES') return { fill: "6A1B9A", color: "FFFFFF" };// Morado
+        if (clean === 'GUATEMALA') return { fill: "0D47A1", color: "FFFFFF" };
+        if (clean === 'MEXICO') return { fill: "1B5E20", color: "FFFFFF" };
+        if (clean === 'COLOMBIA') return { fill: "FF6D00", color: "FFFFFF" };
+        if (clean === 'PANAMA') return { fill: "800020", color: "FFFFFF" };
+        if (clean === 'JAMAICA') return { fill: "FFD600", color: "000000" };
+        if (clean === 'PHILIPPINES') return { fill: "6A1B9A", color: "FFFFFF" };
         return { fill: "808080", color: "000000" };
     }
 
@@ -567,6 +627,47 @@
         if (statusClassMap[val]) {
             selectElement.classList.add(statusClassMap[val]);
         }
+        updateCounters();
+    }
+
+    function updateCounters() {
+        let attendedCount = 0;
+        let latesCount = 0;
+        let notPresentCount = 0;
+
+        const notPresentStatuses = [
+            "Day Off",
+            "Sick Day",
+            "Schedule Medical Appointment",
+            "Vacation",
+            "Absent, No Call/ No Show",
+            "Floating Holiday",
+            "Emergency Day Off",
+            "Disciplinary Suspension",
+            "US Holiday",
+            "Country Holiday",
+            "Bereavement Leave",
+            "Marriage/Ma/Paternity Leaving",
+            "Legal Process"
+        ];
+
+        const selects = document.querySelectorAll('.cell-select');
+        selects.forEach(select => {
+            const val = select.value;
+            if (val === 'Attended') {
+                attendedCount++;
+            } else if (val === 'Late' || val === 'Late Justified (Back Up Doc.)') {
+                latesCount++;
+            }
+            
+            if (notPresentStatuses.includes(val)) {
+                notPresentCount++;
+            }
+        });
+
+        document.getElementById('countAttended').innerText = attendedCount;
+        document.getElementById('countLates').innerText = latesCount;
+        document.getElementById('countNotPresent').innerText = notPresentCount;
     }
 
     function renderCurrentTable() {
@@ -622,6 +723,8 @@
             const selectElem = document.getElementById(`status_${index}`);
             updateSelectColor(selectElem);
         });
+
+        updateCounters();
     }
 
     function saveData() {
