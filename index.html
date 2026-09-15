@@ -635,6 +635,13 @@
         let latesCount = 0;
         let notPresentCount = 0;
 
+        const attendedStatuses = [
+            "Attended",
+            "Late",
+            "Late Justified (Back Up Doc.)",
+            "Early Out"
+        ];
+
         const notPresentStatuses = [
             "Day Off",
             "Sick Day",
@@ -654,9 +661,12 @@
         const selects = document.querySelectorAll('.cell-select');
         selects.forEach(select => {
             const val = select.value;
-            if (val === 'Attended') {
+            
+            if (attendedStatuses.includes(val)) {
                 attendedCount++;
-            } else if (val === 'Late' || val === 'Late Justified (Back Up Doc.)') {
+            }
+            
+            if (val === 'Late' || val === 'Late Justified (Back Up Doc.)') {
                 latesCount++;
             }
             
