@@ -13,6 +13,7 @@
             --excel-color: #107c41;
             --warning-color: #ffc107;
             --danger-color: #dc3545;
+            --global-color: #6f42c1;
             --bg-color: #f4f6f9;
             --card-bg: #ffffff;
             --border-color: #dee2e6;
@@ -46,8 +47,16 @@
             border-bottom: 2px solid var(--border-color);
         }
 
-        h1 {
+        .main-header-title {
             margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #000000;
+            text-transform: uppercase;
+        }
+
+        .section-title-country {
+            margin: 20px 0 15px 0;
             color: #2c3e50;
             font-size: 1.8rem;
         }
@@ -102,6 +111,14 @@
             gap: 20px;
             margin-bottom: 25px;
             flex-wrap: wrap;
+        }
+
+        .global-section {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
         }
 
         .stat-card {
@@ -271,11 +288,13 @@
 
 <div class="container">
     <div class="header">
-        <h1 id="pageTitle">Daily Attendance</h1>
+        <!-- TÍTULO EN LA PARTE IZQUIERDA -->
+        <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
         
+        <!-- MENÚS Y BOTONES EN LA PARTE DERECHA -->
         <div class="controls">
             <div class="selector-group">
-                <label for="countrySelect">PAÍS / PESTAÑA:</label>
+                <label for="countrySelect">PAÍS:</label>
                 <select id="countrySelect" class="nav-select">
                     <option value="Colombia">Colombia</option>
                     <option value="Guatemala">Guatemala</option>
@@ -296,7 +315,24 @@
         </div>
     </div>
 
-    <!-- TARJETAS DE MÉTRICAS Y CONTADORES -->
+    <!-- SECCIÓN GLOBAL (CONTADORES GLOBALES) -->
+    <div class="global-section">
+        <div class="stats-container" style="margin-bottom: 0;">
+            <div class="stat-card attended">
+                <div class="stat-title">Total Agents Attended (All Countries)</div>
+                <div class="stat-value" id="globalCountAttended">0</div>
+            </div>
+            <div class="stat-card not-present">
+                <div class="stat-title">Total of Agents Not Present (All Countries)</div>
+                <div class="stat-value" id="globalCountNotPresent">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TÍTULO DEL PAÍS -->
+    <h1 id="pageTitle" class="section-title-country">Daily Attendance</h1>
+
+    <!-- TARJETAS DE MÉTRICAS Y CONTADORES POR PAÍS -->
     <div class="stats-container">
         <div class="stat-card attended">
             <div class="stat-title">Total Agents Attended on time</div>
@@ -504,6 +540,29 @@
         "Jamaica": "country-jamaica", "Mexico": "country-mexico"
     };
 
+    const attendedStatuses = [
+        "Attended",
+        "Late",
+        "Late Justified (Back Up Doc.)",
+        "Early Out"
+    ];
+
+    const notPresentStatuses = [
+        "Day Off",
+        "Sick Day",
+        "Schedule Medical Appointment",
+        "Vacation",
+        "Absent, No Call/ No Show",
+        "Floating Holiday",
+        "Emergency Day Off",
+        "Disciplinary Suspension",
+        "US Holiday",
+        "Country Holiday",
+        "Bereavement Leave",
+        "Marriage/Ma/Paternity Leaving",
+        "Legal Process"
+    ];
+
     function cleanString(str) {
         return str ? str.toString().toUpperCase().replace(/[^A-Z]/g, '') : '';
     }
@@ -642,29 +701,6 @@
         let latesCount = 0;
         let notPresentCount = 0;
 
-        const attendedStatuses = [
-            "Attended",
-            "Late",
-            "Late Justified (Back Up Doc.)",
-            "Early Out"
-        ];
-
-        const notPresentStatuses = [
-            "Day Off",
-            "Sick Day",
-            "Schedule Medical Appointment",
-            "Vacation",
-            "Absent, No Call/ No Show",
-            "Floating Holiday",
-            "Emergency Day Off",
-            "Disciplinary Suspension",
-            "US Holiday",
-            "Country Holiday",
-            "Bereavement Leave",
-            "Marriage/Ma/Paternity Leaving",
-            "Legal Process"
-        ];
-
         const selects = document.querySelectorAll('.cell-select');
         selects.forEach(select => {
             const val = select.value;
@@ -685,6 +721,42 @@
         document.getElementById('countAttended').innerText = attendedCount;
         document.getElementById('countLates').innerText = latesCount;
         document.getElementById('countNotPresent').innerText = notPresentCount;
+
+        // Calcular métricas globales para todos los países
+        updateGlobalCounters();
+    }
+
+    function updateGlobalCounters() {
+        const selectedDate = dateInput.value;
+        const currentCountry = countrySelect.value;
+        let globalAttended = 0;
+        let globalNotPresent = 0;
+
+        Object.keys(countryData).forEach(c => {
+            const storageKey = `attendance_${c}_${selectedDate}`;
+            const savedData = JSON.parse(localStorage.getItem(storageKey)) || {};
+            const employees = countryData[c] || [];
+
+            employees.forEach((_, idx) => {
+                let statusVal = '';
+                if (c === currentCountry) {
+                    const sel = document.getElementById(`status_${idx}`);
+                    statusVal = sel ? sel.value : '';
+                } else {
+                    statusVal = savedData[idx] ? savedData[idx].status : '';
+                }
+
+                if (attendedStatuses.includes(statusVal)) {
+                    globalAttended++;
+                }
+                if (notPresentStatuses.includes(statusVal)) {
+                    globalNotPresent++;
+                }
+            });
+        });
+
+        document.getElementById('globalCountAttended').innerText = globalAttended;
+        document.getElementById('globalCountNotPresent').innerText = globalNotPresent;
     }
 
     function renderCurrentTable() {
@@ -767,6 +839,7 @@
         localStorage.setItem(storageKey, JSON.stringify(dataToSave));
 
         showToast(`¡Información de ${country} guardada para el ${selectedDate}!`);
+        updateGlobalCounters();
     }
 
     function exportToExcel() {
