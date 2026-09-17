@@ -108,7 +108,7 @@
         /* --- DASHBOARD COUNTERS --- */
         .stats-container {
             display: flex;
-            gap: 20px;
+            gap: 15px;
             margin-bottom: 25px;
             flex-wrap: wrap;
         }
@@ -123,7 +123,7 @@
 
         .stat-card {
             flex: 1;
-            min-width: 220px;
+            min-width: 180px;
             background: #fff;
             border-radius: 8px;
             padding: 15px 20px;
@@ -137,6 +137,8 @@
         .stat-card.attended { border-left-color: var(--success-color); }
         .stat-card.lates { border-left-color: var(--warning-color); }
         .stat-card.not-present { border-left-color: var(--danger-color); }
+        .stat-card.expected { border-left-color: #0d6efd; }
+        .stat-card.unexpected { border-left-color: #6f42c1; }
 
         .stat-title {
             font-size: 0.85rem;
@@ -262,26 +264,27 @@
         .country-mexico      { background-color: #c8e6c9; color: #000; }
 
         /* --- COLORES PARA EL SELECTOR DE STATUS --- */
-        select.status-na                           { background-color: #ffffff !important; color: #333 !important; }
-        select.status-attended                     { background-color: #007e33 !important; color: #ffffff !important; }
-        select.status-day-off                      { background-color: #e0e0e0 !important; color: #000000 !important; }
-        select.status-late                         { background-color: #ff8a80 !important; color: #000000 !important; }
-        select.status-late-justified               { background-color: #ff6d00 !important; color: #ffffff !important; }
-        select.status-sick-day                     { background-color: #ffd600 !important; color: #000000 !important; }
-        select.status-medical-appointment          { background-color: #c0ca33 !important; color: #000000 !important; }
-        select.status-escalated-sst                { background-color: #00e5ff !important; color: #000000 !important; }
-        select.status-vacation                     { background-color: #a5d6a7 !important; color: #000000 !important; }
-        select.status-loa                          { background-color: #0288d1 !important; color: #ffffff !important; }
-        select.status-absent                       { background-color: #cc0000 !important; color: #ffffff !important; }
-        select.status-early-out                    { background-color: #90caf9 !important; color: #000000 !important; }
-        select.status-floating-holiday             { background-color: #ce93d8 !important; color: #000000 !important; }
-        select.status-emergency-day-off            { background-color: #aa00ff !important; color: #ffffff !important; }
+        select.status-na                            { background-color: #ffffff !important; color: #333 !important; }
+        select.status-attended                      { background-color: #007e33 !important; color: #ffffff !important; }
+        select.status-day-off                       { background-color: #e0e0e0 !important; color: #000000 !important; }
+        select.status-late                          { background-color: #ff8a80 !important; color: #000000 !important; }
+        select.status-late-justified                { background-color: #ff6d00 !important; color: #ffffff !important; }
+        select.status-sick-day                      { background-color: #ffd600 !important; color: #000000 !important; }
+        select.status-medical-appointment           { background-color: #c0ca33 !important; color: #000000 !important; }
+        select.status-escalated-sst                 { background-color: #00e5ff !important; color: #000000 !important; }
+        select.status-vacation                      { background-color: #a5d6a7 !important; color: #000000 !important; }
+        select.status-loa                           { background-color: #0288d1 !important; color: #ffffff !important; }
+        select.status-absent                        { background-color: #cc0000 !important; color: #ffffff !important; font-weight: bold; }
+        select.status-no-call-no-show               { background-color: #4a0e17 !important; color: #ffffff !important; font-weight: bold; }
+        select.status-early-out                     { background-color: #90caf9 !important; color: #000000 !important; }
+        select.status-floating-holiday              { background-color: #ce93d8 !important; color: #000000 !important; }
+        select.status-emergency-day-off             { background-color: #aa00ff !important; color: #ffffff !important; }
         select.status-disciplinary-suspension      { background-color: #616161 !important; color: #ffffff !important; }
-        select.status-us-holiday                   { background-color: #0d47a1 !important; color: #ffffff !important; }
-        select.status-country-holiday              { background-color: #00b0ff !important; color: #ffffff !important; }
-        select.status-bereavement-leave            { background-color: #000000 !important; color: #ffffff !important; }
-        select.status-marriage-paternity           { background-color: #ff007f !important; color: #ffffff !important; }
-        select.status-legal-process                { background-color: #800020 !important; color: #ffffff !important; }
+        select.status-us-holiday                    { background-color: #0d47a1 !important; color: #ffffff !important; }
+        select.status-country-holiday               { background-color: #00b0ff !important; color: #ffffff !important; }
+        select.status-bereavement-leave             { background-color: #000000 !important; color: #ffffff !important; }
+        select.status-marriage-paternity            { background-color: #ff007f !important; color: #ffffff !important; }
+        select.status-legal-process                 { background-color: #800020 !important; color: #ffffff !important; }
     </style>
 </head>
 <body>
@@ -323,7 +326,7 @@
                 <div class="stat-value" id="globalCountAttended">0</div>
             </div>
             <div class="stat-card not-present">
-                <div class="stat-title">Total of Agents Not Present (All Countries)</div>
+                <div class="stat-title">Total Absences (All Countries)</div>
                 <div class="stat-value" id="globalCountNotPresent">0</div>
             </div>
         </div>
@@ -343,8 +346,16 @@
             <div class="stat-value" id="countLates">0</div>
         </div>
         <div class="stat-card not-present">
-            <div class="stat-title">Total of Agents not Present</div>
+            <div class="stat-title">Total of Absences</div>
             <div class="stat-value" id="countNotPresent">0</div>
+        </div>
+        <div class="stat-card expected">
+            <div class="stat-title">Total Expected Absences</div>
+            <div class="stat-value" id="countExpectedAbsences">0</div>
+        </div>
+        <div class="stat-card unexpected">
+            <div class="stat-title">Total of Unexpected Absences</div>
+            <div class="stat-value" id="countUnexpectedAbsences">0</div>
         </div>
     </div>
 
@@ -515,7 +526,7 @@
     const statusOptions = [
         "", "N/A", "Attended", "Day Off", "Late", "Late Justified (Back Up Doc.)",
         "Sick Day", "Schedule Medical Appointment", "Escalated to SST", "Vacation",
-        "LOA", "Absent, No Call/ No Show", "Early Out", "Floating Holiday",
+        "LOA", "Absent", "No Call/No Show", "Early Out", "Floating Holiday",
         "Emergency Day Off", "Disciplinary Suspension", "US Holiday", "Country Holiday",
         "Bereavement Leave", "Marriage/Ma/Paternity Leaving", "Legal Process"
     ];
@@ -525,7 +536,7 @@
         "Late": "status-late", "Late Justified (Back Up Doc.)": "status-late-justified",
         "Sick Day": "status-sick-day", "Schedule Medical Appointment": "status-medical-appointment",
         "Escalated to SST": "status-escalated-sst", "Vacation": "status-vacation",
-        "LOA": "status-loa", "Absent, No Call/ No Show": "status-absent",
+        "LOA": "status-loa", "Absent": "status-absent", "No Call/No Show": "status-no-call-no-show",
         "Early Out": "status-early-out", "Floating Holiday": "status-floating-holiday",
         "Emergency Day Off": "status-emergency-day-off", "Disciplinary Suspension": "status-disciplinary-suspension",
         "US Holiday": "status-us-holiday", "Country Holiday": "status-country-holiday",
@@ -546,20 +557,29 @@
         "Early Out"
     ];
 
-    const notPresentStatuses = [
+    const expectedAbsences = [
         "Day Off",
-        "Sick Day",
         "Schedule Medical Appointment",
         "Vacation",
-        "Absent, No Call/ No Show",
         "Floating Holiday",
-        "Emergency Day Off",
         "Disciplinary Suspension",
         "US Holiday",
         "Country Holiday",
         "Bereavement Leave",
         "Marriage/Ma/Paternity Leaving",
         "Legal Process"
+    ];
+
+    const unexpectedAbsences = [
+        "Absent",
+        "No Call/No Show",
+        "Sick Day",
+        "Emergency Day Off"
+    ];
+
+    const notPresentStatuses = [
+        ...expectedAbsences,
+        ...unexpectedAbsences
     ];
 
     function cleanString(str) {
@@ -699,6 +719,8 @@
         let attendedCount = 0;
         let latesCount = 0;
         let notPresentCount = 0;
+        let expectedCount = 0;
+        let unexpectedCount = 0;
 
         const selects = document.querySelectorAll('.cell-select');
         selects.forEach(select => {
@@ -715,11 +737,21 @@
             if (notPresentStatuses.includes(val)) {
                 notPresentCount++;
             }
+
+            if (expectedAbsences.includes(val)) {
+                expectedCount++;
+            }
+
+            if (unexpectedAbsences.includes(val)) {
+                unexpectedCount++;
+            }
         });
 
         document.getElementById('countAttended').innerText = attendedCount;
         document.getElementById('countLates').innerText = latesCount;
         document.getElementById('countNotPresent').innerText = notPresentCount;
+        document.getElementById('countExpectedAbsences').innerText = expectedCount;
+        document.getElementById('countUnexpectedAbsences').innerText = unexpectedCount;
 
         // Calcular métricas globales para todos los países
         updateGlobalCounters();
