@@ -698,12 +698,39 @@
     const pageTitle = document.getElementById('pageTitle');
     const tableHeaderRow = document.getElementById('tableHeaderRow');
 
+    // CONTROL DE CONTRASEÑAS POR PAÍS
+    const passwordsByCountry = {
+        "Colombia": "HwyCOL2023",
+        "Guatemala": "HwyGUA2022",
+        "Jamaica": "HwyJAM2024",
+        "Mexico": "HwyMX2025",
+        "Panama": "HwyPAN2024",
+        "Philippines": "HwayPHI2023"
+    };
+
+    let previousCountry = countrySelect.value;
+
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
 
     renderCurrentTable();
 
-    countrySelect.addEventListener('change', renderCurrentTable);
+    // Event listener con validación de contraseña individual por país
+    countrySelect.addEventListener('change', function (event) {
+        const selectedCountry = this.value;
+        const requiredPassword = passwordsByCountry[selectedCountry];
+
+        const inputPassword = prompt(`Ingrese la contraseña para ingresar a ${selectedCountry}:`);
+
+        if (inputPassword === requiredPassword) {
+            previousCountry = selectedCountry;
+            renderCurrentTable();
+        } else {
+            alert("Contraseña incorrecta. Acceso denegado.");
+            this.value = previousCountry;
+        }
+    });
+
     dateInput.addEventListener('change', renderCurrentTable);
 
     function updateSelectColor(selectElement) {
