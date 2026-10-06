@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Attendance System - Multi-Country</title>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Librería SheetJS con soporte para Estilos CSS en Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
@@ -19,6 +21,8 @@
             --border-color: #dee2e6;
         }
 
+        * { box-sizing: border-box; }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
@@ -28,7 +32,7 @@
         }
 
         .container {
-            max-width: 1550px;
+            max-width: 1650px;
             margin: 0 auto;
             background: var(--card-bg);
             padding: 25px;
@@ -55,8 +59,17 @@
             text-transform: uppercase;
         }
 
-        .section-title-country {
+        .section-header-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
             margin: 20px 0 15px 0;
+        }
+
+        .section-title-country {
+            margin: 0;
             color: #2c3e50;
             font-size: 1.8rem;
         }
@@ -94,11 +107,13 @@
             border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
         }
 
+        .btn-add-agent { background-color: var(--primary-color); }
+        .btn-add-agent:hover { background-color: #0b5ed7; }
         .btn-save { background-color: var(--success-color); }
         .btn-save:hover { background-color: #157347; }
         .btn-excel { background-color: var(--excel-color); }
@@ -170,6 +185,7 @@
             padding: 10px 12px;
             text-align: left;
             border: 1px solid var(--border-color);
+            vertical-align: middle;
         }
 
         /* --- ENCABEZADOS DEFAULT --- */
@@ -199,6 +215,17 @@
             transition: background-color 0.2s, color 0.2s;
         }
 
+        /* Dynamic Edit Mode Input Styling */
+        input.edit-input {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid var(--primary-color) !important;
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
         .toast {
             position: fixed;
             bottom: 20px;
@@ -219,6 +246,35 @@
             font-weight: bold !important;
             text-align: center !important;
         }
+
+        /* --- DRAG & DROP STYLES --- */
+        tr.draggable-row { cursor: move; }
+        tr.dragging { opacity: 0.5; background-color: #e2e8f0 !important; }
+        .drag-handle { cursor: grab; margin-right: 8px; color: #6c757d; }
+        .drag-handle:active { cursor: grabbing; }
+
+        /* Action Buttons */
+        .action-btn-group {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            align-items: center;
+        }
+        .action-btn {
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+        .btn-edit-row { background-color: #f59e0b; }
+        .btn-edit-row:hover { background-color: #d97706; }
+        .btn-save-row { background-color: #10b981; }
+        .btn-save-row:hover { background-color: #059669; }
+        .btn-delete-row { background-color: #ef4444; }
+        .btn-delete-row:hover { background-color: #dc2626; }
 
         /* --- COLORES DE FONDO POR EQUIPO (TEAM) --- */
         td.team-management     { background-color: #ffcccc !important; color: #000000 !important; font-weight: bold; }
@@ -332,8 +388,11 @@
         </div>
     </div>
 
-    <!-- TÍTULO DEL PAÍS -->
-    <h1 id="pageTitle" class="section-title-country">Daily Attendance</h1>
+    <!-- ENCABEZADO DE SECCIÓN DE PAÍS + BOTÓN ADD AN AGENT -->
+    <div class="section-header-flex">
+        <h1 id="pageTitle" class="section-title-country">Daily Attendance</h1>
+        <button class="btn btn-add-agent" onclick="addAgent()"><i class="fa-solid fa-user-plus"></i> Add an Agent</button>
+    </div>
 
     <!-- TARJETAS DE MÉTRICAS Y CONTADORES POR PAÍS -->
     <div class="stats-container">
@@ -370,6 +429,7 @@
                     <th style="text-align: center;">CHECK OUT (US TIME)</th>
                     <th style="min-width: 220px;">STATUS FOR THE DAY</th>
                     <th style="min-width: 220px;">COMMENTS</th>
+                    <th style="text-align: center; min-width: 100px;">ACTIONS</th>
                 </tr>
             </thead>
             <tbody id="attendanceTableBody">
@@ -382,7 +442,9 @@
 <div id="toast" class="toast">Guardado exitosamente</div>
 
 <script>
-    const countryData = {
+    const MANAGEMENT_PASSWORD = "management2026!";
+
+    const defaultCountryData = {
         "Colombia": [
             {"name": "Alejandra Manco", "team": "OBS - Cases", "supervisor": "Nury Garcia", "checkIn": "08:00:00", "checkOut": "17:00:00"},
             {"name": "Kevin Cadavid", "team": "OBS - Phones", "supervisor": "Nury Garcia", "checkIn": "08:00:00", "checkOut": "17:00:00"},
@@ -520,6 +582,19 @@
             {"name": "Ann Jules Dayuta", "team": "OBS - Cases", "supervisor": "Jenny Jakosalem", "checkIn": "11:00:00", "checkOut": "20:00:00"}
         ]
     };
+
+    // Load active country employees list from localStorage or fallback to default
+    function getCountryEmployees(country) {
+        const stored = localStorage.getItem(`CS_EMPLOYEES_LIST_${country}`);
+        if (stored) {
+            try { return JSON.parse(stored); } catch(e){}
+        }
+        return JSON.parse(JSON.stringify(defaultCountryData[country] || []));
+    }
+
+    function saveCountryEmployees(country, list) {
+        localStorage.setItem(`CS_EMPLOYEES_LIST_${country}`, JSON.stringify(list));
+    }
 
     const statusOptions = [
         "", "N/A", "Attended", "Day Off", "Late", "Late Justified (Back Up Doc.)",
@@ -707,11 +782,22 @@
     };
 
     let previousCountry = countrySelect.value;
+    let draggedIndex = null;
 
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
 
     renderCurrentTable();
+
+    function checkAdminPassword() {
+        const inputPassword = prompt("Autenticación requerida. Ingrese la contraseña de administración:");
+        if (inputPassword === MANAGEMENT_PASSWORD) {
+            return true;
+        } else {
+            alert("Contraseña incorrecta. Acción denegada.");
+            return false;
+        }
+    }
 
     // Event listener con validación de contraseña individual por país
     countrySelect.addEventListener('change', function (event) {
@@ -788,10 +874,10 @@
         let globalAttended = 0;
         let globalNotPresent = 0;
 
-        Object.keys(countryData).forEach(c => {
+        Object.keys(passwordsByCountry).forEach(c => {
             const storageKey = `attendance_${c}_${selectedDate}`;
             const savedData = JSON.parse(localStorage.getItem(storageKey)) || {};
-            const employees = countryData[c] || [];
+            const employees = getCountryEmployees(c);
 
             employees.forEach((_, idx) => {
                 let statusVal = '';
@@ -833,11 +919,21 @@
         const storageKey = `attendance_${country}_${selectedDate}`;
         const savedData = JSON.parse(localStorage.getItem(storageKey)) || {};
 
-        const employees = countryData[country] || [];
+        const employees = getCountryEmployees(country);
         const countryClass = countryClassMap[country] || '';
 
         employees.forEach((emp, index) => {
             const row = document.createElement('tr');
+            row.id = `row-${index}`;
+            row.className = 'draggable-row';
+            row.draggable = true;
+
+            // Eventos de Drag and Drop
+            row.addEventListener('dragstart', (e) => handleDragStart(e, index));
+            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('drop', (e) => handleDrop(e, index));
+            row.addEventListener('dragend', handleDragEnd);
+
             const savedStatus = savedData[index] ? savedData[index].status : '';
             const savedComments = savedData[index] ? savedData[index].comments : '';
 
@@ -849,11 +945,27 @@
             const supClass = getSupervisorClass(emp.supervisor);
 
             row.innerHTML = `
-                <td class="${countryClass}"><strong>${emp.name}</strong></td>
-                <td class="${teamClass}">${emp.team}</td>
-                <td class="${supClass}">${emp.supervisor}</td>
-                <td class="time-cell">${emp.checkIn}</td>
-                <td class="time-cell">${emp.checkOut}</td>
+                <td class="${countryClass}">
+                    <i class="fa-solid fa-bars drag-handle" title="Arrastrar para reordenar"></i>
+                    <span id="label-${index}-name"><strong>${emp.name}</strong></span>
+                    <input type="text" id="input-${index}-name" class="edit-input" value="${emp.name}" style="display:none;">
+                </td>
+                <td class="${teamClass}" id="cell-${index}-team">
+                    <span id="label-${index}-team">${emp.team}</span>
+                    <input type="text" id="input-${index}-team" class="edit-input" value="${emp.team}" style="display:none;">
+                </td>
+                <td class="${supClass}" id="cell-${index}-sup">
+                    <span id="label-${index}-sup">${emp.supervisor}</span>
+                    <input type="text" id="input-${index}-sup" class="edit-input" value="${emp.supervisor}" style="display:none;">
+                </td>
+                <td class="time-cell">
+                    <span id="label-${index}-in">${emp.checkIn}</span>
+                    <input type="text" id="input-${index}-in" class="edit-input" value="${emp.checkIn}" style="display:none; text-align:center;">
+                </td>
+                <td class="time-cell">
+                    <span id="label-${index}-out">${emp.checkOut}</span>
+                    <input type="text" id="input-${index}-out" class="edit-input" value="${emp.checkOut}" style="display:none; text-align:center;">
+                </td>
                 <td>
                     <select class="cell-select" id="status_${index}" onchange="updateSelectColor(this)">
                         ${optionsHtml}
@@ -861,6 +973,12 @@
                 </td>
                 <td>
                     <input type="text" id="comments_${index}" value="${savedComments}" placeholder="Escribe un comentario...">
+                </td>
+                <td>
+                    <div class="action-btn-group" id="btn-group-${index}">
+                        <button class="action-btn btn-edit-row" onclick="enableRowEdit(${index})" title="Editar Agente"><i class="fa-solid fa-pen"></i></button>
+                        <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Eliminar Agente"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -872,6 +990,112 @@
         updateCounters();
     }
 
+    /* Funciones para Drag & Drop */
+    function handleDragStart(e, index) {
+        draggedIndex = index;
+        e.target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDrop(e, targetIndex) {
+        e.stopPropagation();
+        if (draggedIndex !== null && draggedIndex !== targetIndex) {
+            const country = countrySelect.value;
+            const employees = getCountryEmployees(country);
+
+            const draggedItem = employees.splice(draggedIndex, 1)[0];
+            employees.splice(targetIndex, 0, draggedItem);
+
+            saveCountryEmployees(country, employees);
+            renderCurrentTable();
+        }
+        return false;
+    }
+
+    function handleDragEnd(e) {
+        if (e.target) e.target.classList.remove('dragging');
+        draggedIndex = null;
+    }
+
+    /* Funciones para Editar y Eliminar Agente */
+    function enableRowEdit(index) {
+        if (!checkAdminPassword()) return;
+
+        const fields = ['name', 'team', 'sup', 'in', 'out'];
+        fields.forEach(f => {
+            const lbl = document.getElementById(`label-${index}-${f}`);
+            const inp = document.getElementById(`input-${index}-${f}`);
+            if (lbl) lbl.style.display = 'none';
+            if (inp) inp.style.display = 'inline-block';
+        });
+
+        const btnGroup = document.getElementById(`btn-group-${index}`);
+        btnGroup.innerHTML = `
+            <button class="action-btn btn-save-row" onclick="saveRowEdit(${index})" title="Guardar Cambios"><i class="fa-solid fa-floppy-disk"></i></button>
+            <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Eliminar Agente"><i class="fa-solid fa-trash"></i></button>
+        `;
+    }
+
+    function saveRowEdit(index) {
+        const country = countrySelect.value;
+        const employees = getCountryEmployees(country);
+
+        employees[index] = {
+            name: document.getElementById(`input-${index}-name`).value,
+            team: document.getElementById(`input-${index}-team`).value,
+            supervisor: document.getElementById(`input-${index}-sup`).value,
+            checkIn: document.getElementById(`input-${index}-in`).value,
+            checkOut: document.getElementById(`input-${index}-out`).value
+        };
+
+        saveCountryEmployees(country, employees);
+        renderCurrentTable();
+        showToast("¡Información del agente actualizada!");
+    }
+
+    function deleteAgent(index) {
+        if (!checkAdminPassword()) return;
+
+        const country = countrySelect.value;
+        const employees = getCountryEmployees(country);
+
+        if (confirm(`¿Está seguro de eliminar al agente "${employees[index].name}"?`)) {
+            employees.splice(index, 1);
+            saveCountryEmployees(country, employees);
+            renderCurrentTable();
+            showToast("Agente eliminado exitosamente.");
+        }
+    }
+
+    function addAgent() {
+        if (!checkAdminPassword()) return;
+
+        const country = countrySelect.value;
+        const employees = getCountryEmployees(country);
+
+        const newAgent = {
+            name: "Nuevo Agente",
+            team: "OBS - Cases",
+            supervisor: "Supervisor",
+            checkIn: "08:00:00",
+            checkOut: "17:00:00"
+        };
+
+        employees.push(newAgent);
+        saveCountryEmployees(country, employees);
+        renderCurrentTable();
+
+        const newIndex = employees.length - 1;
+        enableRowEdit(newIndex);
+        showToast("Nuevo agente añadido. Puedes editar su información.");
+    }
+
     function saveData() {
         const country = countrySelect.value;
         const selectedDate = dateInput.value;
@@ -881,12 +1105,15 @@
             return;
         }
 
-        const employees = countryData[country] || [];
+        const employees = getCountryEmployees(country);
         const dataToSave = {};
 
         employees.forEach((_, index) => {
-            const status = document.getElementById(`status_${index}`).value;
-            const comments = document.getElementById(`comments_${index}`).value;
+            const statusElem = document.getElementById(`status_${index}`);
+            const commentsElem = document.getElementById(`comments_${index}`);
+
+            const status = statusElem ? statusElem.value : '';
+            const comments = commentsElem ? commentsElem.value : '';
 
             dataToSave[index] = { status: status, comments: comments };
         });
@@ -907,7 +1134,7 @@
             return;
         }
 
-        const employees = countryData[country] || [];
+        const employees = getCountryEmployees(country);
 
         const headers = ["COUNTRY", "NAME", "TEAM", "SUPERVISOR", "CHECK IN (US TIME)", "CHECK OUT (US TIME)", "STATUS FOR THE DAY", "COMMENTS", "DATE"];
         const rows = [headers];
