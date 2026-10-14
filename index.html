@@ -62,13 +62,14 @@
             gap: 15px;
         }
 
-        .logo-3d-svg {
-            width: 52px;
-            height: 52px;
+        .title-emoji {
+            font-size: 2.2rem;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            line-height: 1;
+            color: var(--amber-color); /* Color amarillo exacto del título */
         }
 
         .main-header-title {
@@ -378,67 +379,9 @@
 
 <div class="container">
     <div class="header">
-        <!-- ICONO H DELGADA EN PERSPECTIVA 3D A LA IZQUIERDA DEL TÍTULO -->
+        <!-- ICONO DE NOTAS/PORTAPAPELES EN AMARILLO EXACTO DEL TÍTULO -->
         <div class="header-title-container">
-            <div class="logo-3d-svg">
-                <svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#0b1329" />
-                            <stop offset="100%" stop-color="#182547" />
-                        </linearGradient>
-                        <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#ffe066" />
-                            <stop offset="50%" stop-color="#ffc107" />
-                            <stop offset="100%" stop-color="#d39e00" />
-                        </linearGradient>
-                        <linearGradient id="amberDarkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#b38600" />
-                            <stop offset="100%" stop-color="#664d00" />
-                        </linearGradient>
-                    </defs>
-
-                    <!-- Fondo del Logo con borde amarillo ámbar -->
-                    <rect x="5" y="5" width="90" height="90" rx="20" fill="url(#bgGrad)" stroke="#ffc107" stroke-width="3" />
-
-                    <!-- Sombra en el suelo -->
-                    <polygon points="18,85 82,85 71,55 29,55" fill="rgba(0,0,0,0.35)" />
-
-                    <!-- Cara lateral 3D (Grosor delgado de la H) -->
-                    <path d="
-                        M 18,80 L 18,82.5 L 30,82.5 L 30,80 Z
-                        M 70,80 L 70,82.5 L 82,82.5 L 82,80 Z
-                        M 30,68 L 30,70.5 L 70,70.5 L 70,68 Z
-                    " fill="url(#amberDarkGrad)" />
-
-                    <!-- Letra 'H' Delgada en Perspectiva 3D Recostada -->
-                    <path d="
-                        M 18,80 
-                        L 30,80 
-                        L 33,68 
-                        L 67,68 
-                        L 70,80 
-                        L 82,80 
-                        L 73,38 
-                        L 61,38 
-                        L 58,52 
-                        L 42,52 
-                        L 39,38 
-                        L 27,38 
-                        Z
-                        M 40,58 
-                        L 41,46 
-                        L 44,46 
-                        L 43,58 
-                        Z
-                        M 60,58 
-                        L 57,58 
-                        L 56,46 
-                        L 59,46 
-                        Z
-                    " fill="url(#amberGrad)" stroke="#ffb300" stroke-width="0.8" stroke-linejoin="round" />
-                </svg>
-            </div>
+            <div class="title-emoji"><i class="fa-solid fa-clipboard-list"></i></div>
             <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
         </div>
         
