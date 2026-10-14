@@ -16,9 +16,13 @@
             --warning-color: #ffc107;
             --danger-color: #dc3545;
             --global-color: #6f42c1;
-            --bg-color: #f4f6f9;
-            --card-bg: #ffffff;
-            --border-color: #dee2e6;
+            --amber-color: #ffc107;
+            --amber-hover: #ffb300;
+            --bg-color: #0b1329;
+            --card-bg: #111c38;
+            --border-color: #ffc107;
+            --grid-line-color: #ffc107;
+            --text-color: #ffffff;
         }
 
         * { box-sizing: border-box; }
@@ -28,7 +32,7 @@
             background-color: var(--bg-color);
             margin: 0;
             padding: 20px;
-            color: #333;
+            color: var(--text-color);
         }
 
         .container {
@@ -37,7 +41,8 @@
             background: var(--card-bg);
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
         }
 
         .header {
@@ -51,12 +56,28 @@
             border-bottom: 2px solid var(--border-color);
         }
 
+        .header-title-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-3d-svg {
+            width: 52px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
         .main-header-title {
             margin: 0;
             font-size: 1.5rem;
             font-weight: 800;
-            color: #000000;
+            color: var(--amber-color);
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .section-header-flex {
@@ -70,7 +91,7 @@
 
         .section-title-country {
             margin: 0;
-            color: #2c3e50;
+            color: #ffffff;
             font-size: 1.8rem;
         }
 
@@ -86,16 +107,19 @@
             align-items: center;
             gap: 8px;
             font-weight: 600;
+            color: var(--amber-color);
         }
 
         select.nav-select, input[type="date"] {
             padding: 8px 12px;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--amber-color);
             border-radius: 6px;
             font-size: 0.95rem;
             outline: none;
-            background-color: #fff;
+            background-color: #0b1329;
+            color: #ffffff;
             cursor: pointer;
+            font-weight: 600;
         }
 
         .btn {
@@ -129,8 +153,8 @@
         }
 
         .global-section {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
+            background-color: #0b1329;
+            border: 1px solid var(--border-color);
             border-radius: 10px;
             padding: 15px 20px;
             margin-bottom: 25px;
@@ -139,10 +163,11 @@
         .stat-card {
             flex: 1;
             min-width: 180px;
-            background: #fff;
+            background: #182547;
             border-radius: 8px;
             padding: 15px 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
             border-left: 5px solid var(--primary-color);
             display: flex;
             flex-direction: column;
@@ -158,7 +183,7 @@
         .stat-title {
             font-size: 0.85rem;
             font-weight: 700;
-            color: #6c757d;
+            color: #b0bec5;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 5px;
@@ -167,24 +192,27 @@
         .stat-value {
             font-size: 1.8rem;
             font-weight: bold;
-            color: #2c3e50;
+            color: var(--amber-color);
         }
 
         .table-responsive {
             overflow-x: auto;
             max-height: 70vh;
+            border: 1px solid var(--grid-line-color);
+            border-radius: 6px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9rem;
+            background-color: #111c38;
         }
 
         th, td {
             padding: 10px 12px;
             text-align: left;
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--grid-line-color) !important;
             vertical-align: middle;
         }
 
@@ -213,6 +241,8 @@
             font-size: 0.88rem;
             font-weight: 600;
             transition: background-color 0.2s, color 0.2s;
+            background-color: #0b1329;
+            color: #ffffff;
         }
 
         /* Dynamic Edit Mode Input Styling */
@@ -230,11 +260,12 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: #212529;
-            color: white;
+            background-color: var(--amber-color);
+            color: #000000;
+            font-weight: bold;
             padding: 12px 24px;
             border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             display: none;
             z-index: 1000;
         }
@@ -249,8 +280,8 @@
 
         /* --- DRAG & DROP STYLES --- */
         tr.draggable-row { cursor: move; }
-        tr.dragging { opacity: 0.5; background-color: #e2e8f0 !important; }
-        .drag-handle { cursor: grab; margin-right: 8px; color: #6c757d; }
+        tr.dragging { opacity: 0.5; background-color: #1e2d5a !important; }
+        .drag-handle { cursor: grab; margin-right: 8px; color: #000000; }
         .drag-handle:active { cursor: grabbing; }
 
         /* Action Buttons */
@@ -347,30 +378,91 @@
 
 <div class="container">
     <div class="header">
-        <!-- TÍTULO EN LA PARTE IZQUIERDA -->
-        <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
+        <!-- ICONO H DELGADA EN PERSPECTIVA 3D A LA IZQUIERDA DEL TÍTULO -->
+        <div class="header-title-container">
+            <div class="logo-3d-svg">
+                <svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#0b1329" />
+                            <stop offset="100%" stop-color="#182547" />
+                        </linearGradient>
+                        <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#ffe066" />
+                            <stop offset="50%" stop-color="#ffc107" />
+                            <stop offset="100%" stop-color="#d39e00" />
+                        </linearGradient>
+                        <linearGradient id="amberDarkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#b38600" />
+                            <stop offset="100%" stop-color="#664d00" />
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Fondo del Logo con borde amarillo ámbar -->
+                    <rect x="5" y="5" width="90" height="90" rx="20" fill="url(#bgGrad)" stroke="#ffc107" stroke-width="3" />
+
+                    <!-- Sombra en el suelo -->
+                    <polygon points="18,85 82,85 71,55 29,55" fill="rgba(0,0,0,0.35)" />
+
+                    <!-- Cara lateral 3D (Grosor delgado de la H) -->
+                    <path d="
+                        M 18,80 L 18,82.5 L 30,82.5 L 30,80 Z
+                        M 70,80 L 70,82.5 L 82,82.5 L 82,80 Z
+                        M 30,68 L 30,70.5 L 70,70.5 L 70,68 Z
+                    " fill="url(#amberDarkGrad)" />
+
+                    <!-- Letra 'H' Delgada en Perspectiva 3D Recostada -->
+                    <path d="
+                        M 18,80 
+                        L 30,80 
+                        L 33,68 
+                        L 67,68 
+                        L 70,80 
+                        L 82,80 
+                        L 73,38 
+                        L 61,38 
+                        L 58,52 
+                        L 42,52 
+                        L 39,38 
+                        L 27,38 
+                        Z
+                        M 40,58 
+                        L 41,46 
+                        L 44,46 
+                        L 43,58 
+                        Z
+                        M 60,58 
+                        L 57,58 
+                        L 56,46 
+                        L 59,46 
+                        Z
+                    " fill="url(#amberGrad)" stroke="#ffb300" stroke-width="0.8" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
+        </div>
         
-        <!-- MENÚS Y BOTONES EN LA PARTE DERECHA -->
+        <!-- MENÚS Y BOTONES EN LA PARTE DERECHA (EN INGLÉS) -->
         <div class="controls">
             <div class="selector-group">
-                <label for="countrySelect">PAÍS:</label>
+                <label for="countrySelect">COUNTRY:</label>
                 <select id="countrySelect" class="nav-select">
                     <option value="Colombia">Colombia</option>
                     <option value="Guatemala" selected>Guatemala</option>
                     <option value="Jamaica">Jamaica</option>
-                    <option value="Mexico">México</option>
-                    <option value="Panama">Panamá</option>
+                    <option value="Mexico">Mexico</option>
+                    <option value="Panama">Panama</option>
                     <option value="Philippines">Philippines</option>
                 </select>
             </div>
 
             <div class="selector-group">
-                <label for="attendanceDate">FECHA:</label>
+                <label for="attendanceDate">DATE:</label>
                 <input type="date" id="attendanceDate">
             </div>
 
             <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
-            <button class="btn btn-excel" onclick="exportToExcel()">📊 Descargar Excel</button>
+            <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
         </div>
     </div>
 
@@ -583,7 +675,6 @@
         ]
     };
 
-    // Load active country employees list from localStorage or fallback to default
     function getCountryEmployees(country) {
         const stored = localStorage.getItem(`CS_EMPLOYEES_LIST_${country}`);
         if (stored) {
@@ -771,7 +862,6 @@
     const pageTitle = document.getElementById('pageTitle');
     const tableHeaderRow = document.getElementById('tableHeaderRow');
 
-    // CONTROL DE CONTRASEÑAS POR PAÍS
     const passwordsByCountry = {
         "Colombia": "HwyCOL2023",
         "Guatemala": "HwyGUA2022",
@@ -799,7 +889,6 @@
         }
     }
 
-    // Event listener con validación de contraseña individual por país
     countrySelect.addEventListener('change', function (event) {
         const selectedCountry = this.value;
         const requiredPassword = passwordsByCountry[selectedCountry];
@@ -864,7 +953,6 @@
         document.getElementById('countExpectedAbsences').innerText = expectedCount;
         document.getElementById('countUnexpectedAbsences').innerText = unexpectedCount;
 
-        // Calcular métricas globales para todos los países
         updateGlobalCounters();
     }
 
@@ -907,7 +995,6 @@
         
         pageTitle.innerText = `Daily Attendance - ${countrySelect.options[countrySelect.selectedIndex].text}`;
         
-        // Actualizar la clase de la fila de la cabecera según el País seleccionado
         const headerClass = getHeaderClass(country);
         const thList = tableHeaderRow.querySelectorAll('th');
         thList.forEach(th => {
@@ -928,7 +1015,6 @@
             row.className = 'draggable-row';
             row.draggable = true;
 
-            // Eventos de Drag and Drop
             row.addEventListener('dragstart', (e) => handleDragStart(e, index));
             row.addEventListener('dragover', handleDragOver);
             row.addEventListener('drop', (e) => handleDrop(e, index));
@@ -990,7 +1076,6 @@
         updateCounters();
     }
 
-    /* Funciones para Drag & Drop */
     function handleDragStart(e, index) {
         draggedIndex = index;
         e.target.classList.add('dragging');
@@ -1023,7 +1108,6 @@
         draggedIndex = null;
     }
 
-    /* Funciones para Editar y Eliminar Agente */
     function enableRowEdit(index) {
         if (!checkAdminPassword()) return;
 
@@ -1158,7 +1242,6 @@
 
         const worksheet = XLSX.utils.aoa_to_sheet(rows);
 
-        // APLICAR ESTILO PERSONALIZADO DE CABECERA SEGÚN EL PAÍS EN EXCEL
         const headerStyle = getHeaderExcelStyle(country);
         headers.forEach((_, colIndex) => {
             const cellAddress = XLSX.utils.encode_cell({ r: 0, c: colIndex });
@@ -1171,11 +1254,9 @@
             }
         });
 
-        // APLICAR ESTILOS A LAS FILAS DE DATOS EN EXCEL
         employees.forEach((emp, rowIndex) => {
             const excelRow = rowIndex + 1;
 
-            // ESTILO PARA LAS CELDAS DE EQUIPO (TEAM)
             const teamStyle = getTeamExcelStyle(emp.team);
             if (teamStyle) {
                 const teamCellAddr = XLSX.utils.encode_cell({ r: excelRow, c: 2 });
@@ -1187,7 +1268,6 @@
                 }
             }
 
-            // ESTILO PARA LAS CELDAS DE SUPERVISOR
             const supStyle = getSupervisorExcelStyle(emp.supervisor);
             if (supStyle) {
                 const supCellAddr = XLSX.utils.encode_cell({ r: excelRow, c: 3 });
@@ -1199,7 +1279,6 @@
                 }
             }
 
-            // ESTILO PARA CELDAS CHECK IN Y CHECK OUT EN EXCEL
             const checkInAddr = XLSX.utils.encode_cell({ r: excelRow, c: 4 });
             const checkOutAddr = XLSX.utils.encode_cell({ r: excelRow, c: 5 });
             const timeExcelStyle = {
