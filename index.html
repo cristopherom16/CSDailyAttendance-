@@ -145,6 +145,8 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
+        .btn-back { background-color: #6c757d; }
+        .btn-back:hover { background-color: #5a6268; }
         .btn:active { transform: scale(0.98); }
 
         /* --- DASHBOARD COUNTERS --- */
@@ -383,65 +385,13 @@
         select.status-marriage-paternity             { background-color: #ff007f !important; color: #ffffff !important; }
         select.status-legal-process                  { background-color: #800020 !important; color: #ffffff !important; }
 
-        /* --- MODAL DE ESTADÍSTICAS DEL MES --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1500;
-        }
-
-        .modal-content {
-            background: var(--card-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            width: 90%;
-            max-width: 1200px;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-            padding: 25px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.7);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
-
-        .modal-title {
-            margin: 0;
-            color: var(--amber-color);
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-close-modal {
-            background: transparent;
-            border: none;
-            color: #ffffff;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
+        /* --- PANTALLA DE ESTADÍSTICAS --- */
         .branch-tabs {
             display: flex;
             gap: 10px;
-            border-bottom: 1px solid var(--amber-color);
-            padding-bottom: 10px;
-            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 20px;
             overflow-x: auto;
         }
 
@@ -449,10 +399,11 @@
             background-color: #0b1329;
             color: #ffffff;
             border: 1px solid var(--amber-color);
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 6px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 1rem;
             transition: all 0.2s;
             white-space: nowrap;
         }
@@ -460,11 +411,6 @@
         .branch-tab-btn.active {
             background-color: var(--amber-color);
             color: #000000;
-        }
-
-        .stats-body {
-            overflow-y: auto;
-            flex-grow: 1;
         }
 
         .dates-badge {
@@ -482,132 +428,155 @@
 <body>
 
 <div class="container">
-    <div class="header">
-        <!-- ICONO DE NOTAS/PORTAPAPELES EN AMARILLO EXACTO DEL TÍTULO -->
-        <div class="header-title-container">
-            <div class="title-emoji"><i class="fa-solid fa-clipboard-list"></i></div>
-            <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
-        </div>
-        
-        <!-- MENÚS Y BOTONES EN LA PARTE DERECHA -->
-        <div class="controls">
-            <div class="selector-group">
-                <label for="countrySelect">COUNTRY:</label>
-                <select id="countrySelect" class="nav-select">
-                    <option value="Colombia">Colombia</option>
-                    <option value="Guatemala" selected>Guatemala</option>
-                    <option value="Jamaica">Jamaica</option>
-                    <option value="Mexico">Mexico</option>
-                    <option value="Panama">Panama</option>
-                    <option value="Philippines">Philippines</option>
-                </select>
+    <!-- VISTA 1: TABLA PRINCIPAL DE ASISTENCIA DIARIA -->
+    <div id="mainAttendanceView">
+        <div class="header">
+            <!-- ICONO DE NOTAS/PORTAPAPELES EN AMARILLO EXACTO DEL TÍTULO -->
+            <div class="header-title-container">
+                <div class="title-emoji"><i class="fa-solid fa-clipboard-list"></i></div>
+                <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
             </div>
+            
+            <!-- MENÚS Y BOTONES EN LA PARTE DERECHA -->
+            <div class="controls">
+                <div class="selector-group">
+                    <label for="countrySelect">COUNTRY:</label>
+                    <select id="countrySelect" class="nav-select">
+                        <option value="Colombia">Colombia</option>
+                        <option value="Guatemala" selected>Guatemala</option>
+                        <option value="Jamaica">Jamaica</option>
+                        <option value="Mexico">Mexico</option>
+                        <option value="Panama">Panama</option>
+                        <option value="Philippines">Philippines</option>
+                    </select>
+                </div>
 
-            <div class="selector-group">
-                <label for="attendanceDate">DATE:</label>
-                <input type="date" id="attendanceDate">
+                <div class="selector-group">
+                    <label for="attendanceDate">DATE:</label>
+                    <input type="date" id="attendanceDate">
+                </div>
+
+                <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
+                <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
+                <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
             </div>
-
-            <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
-            <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
-            <button class="btn btn-stats" onclick="openStatsModal()">📈 Statistics of the Month</button>
         </div>
-    </div>
 
-    <!-- SECCIÓN GLOBAL (CONTADORES GLOBALES) -->
-    <div class="global-section">
-        <div class="stats-container" style="margin-bottom: 0;">
+        <!-- SECCIÓN GLOBAL (CONTADORES GLOBALES) -->
+        <div class="global-section">
+            <div class="stats-container" style="margin-bottom: 0;">
+                <div class="stat-card attended">
+                    <div class="stat-title">Total Agents Attended (All Countries)</div>
+                    <div class="stat-value" id="globalCountAttended">0</div>
+                </div>
+                <div class="stat-card not-present">
+                    <div class="stat-title">Total Absences (All Countries)</div>
+                    <div class="stat-value" id="globalCountNotPresent">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ENCABEZADO DE SECCIÓN DE PAÍS + BOTÓN ADD AN AGENT -->
+        <div class="section-header-flex">
+            <h1 id="pageTitle" class="section-title-country">Daily Attendance</h1>
+            <button class="btn btn-add-agent" onclick="addAgent()"><i class="fa-solid fa-user-plus"></i> Add an Agent</button>
+        </div>
+
+        <!-- TARJETAS DE MÉTRICAS Y CONTADORES POR PAÍS -->
+        <div class="stats-container">
             <div class="stat-card attended">
-                <div class="stat-title">Total Agents Attended (All Countries)</div>
-                <div class="stat-value" id="globalCountAttended">0</div>
+                <div class="stat-title">Total Agents Attended on time</div>
+                <div class="stat-value" id="countAttended">0</div>
+            </div>
+            <div class="stat-card lates">
+                <div class="stat-title">Total of Lates</div>
+                <div class="stat-value" id="countLates">0</div>
             </div>
             <div class="stat-card not-present">
-                <div class="stat-title">Total Absences (All Countries)</div>
-                <div class="stat-value" id="globalCountNotPresent">0</div>
+                <div class="stat-title">Total of Absences</div>
+                <div class="stat-value" id="countNotPresent">0</div>
+            </div>
+            <div class="stat-card expected">
+                <div class="stat-title">Total Expected Absences</div>
+                <div class="stat-value" id="countExpectedAbsences">0</div>
+            </div>
+            <div class="stat-card unexpected">
+                <div class="stat-title">Total of Unexpected Absences</div>
+                <div class="stat-value" id="countUnexpectedAbsences">0</div>
             </div>
         </div>
-    </div>
 
-    <!-- ENCABEZADO DE SECCIÓN DE PAÍS + BOTÓN ADD AN AGENT -->
-    <div class="section-header-flex">
-        <h1 id="pageTitle" class="section-title-country">Daily Attendance</h1>
-        <button class="btn btn-add-agent" onclick="addAgent()"><i class="fa-solid fa-user-plus"></i> Add an Agent</button>
-    </div>
-
-    <!-- TARJETAS DE MÉTRICAS Y CONTADORES POR PAÍS -->
-    <div class="stats-container">
-        <div class="stat-card attended">
-            <div class="stat-title">Total Agents Attended on time</div>
-            <div class="stat-value" id="countAttended">0</div>
-        </div>
-        <div class="stat-card lates">
-            <div class="stat-title">Total of Lates</div>
-            <div class="stat-value" id="countLates">0</div>
-        </div>
-        <div class="stat-card not-present">
-            <div class="stat-title">Total of Absences</div>
-            <div class="stat-value" id="countNotPresent">0</div>
-        </div>
-        <div class="stat-card expected">
-            <div class="stat-title">Total Expected Absences</div>
-            <div class="stat-value" id="countExpectedAbsences">0</div>
-        </div>
-        <div class="stat-card unexpected">
-            <div class="stat-title">Total of Unexpected Absences</div>
-            <div class="stat-value" id="countUnexpectedAbsences">0</div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr id="tableHeaderRow">
+                        <th>NAME</th>
+                        <th>TEAM</th>
+                        <th>SUPERVISOR</th>
+                        <th style="text-align: center;">CHECK IN (US TIME)</th>
+                        <th style="text-align: center;">CHECK OUT (US TIME)</th>
+                        <th style="min-width: 220px; text-align: center;">STATUS FOR THE DAY</th>
+                        <th style="min-width: 220px;">COMMENTS</th>
+                        <th style="text-align: center; min-width: 100px;">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTableBody">
+                    <!-- Contenido dinámico -->
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr id="tableHeaderRow">
-                    <th>NAME</th>
-                    <th>TEAM</th>
-                    <th>SUPERVISOR</th>
-                    <th style="text-align: center;">CHECK IN (US TIME)</th>
-                    <th style="text-align: center;">CHECK OUT (US TIME)</th>
-                    <th style="min-width: 220px; text-align: center;">STATUS FOR THE DAY</th>
-                    <th style="min-width: 220px;">COMMENTS</th>
-                    <th style="text-align: center; min-width: 100px;">ACTIONS</th>
-                </tr>
-            </thead>
-            <tbody id="attendanceTableBody">
-                <!-- Contenido dinámico -->
-            </tbody>
-        </table>
-    </div>
-</div>
+    <!-- VISTA 2: PANTALLA COMPLETA DE ESTADÍSTICAS DEL MES -->
+    <div id="statsView" style="display: none;">
+        <div class="header">
+            <div class="header-title-container">
+                <div class="title-emoji"><i class="fa-solid fa-chart-line"></i></div>
+                <h1 class="main-header-title">MONTHLY STATISTICS - TOP OFFENDERS</h1>
+            </div>
 
-<!-- MODAL DE ESTADÍSTICAS DEL MES -->
-<div id="statsModal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 class="modal-title"><i class="fa-solid fa-chart-line"></i> Statistics of the Month - Top Offenders</h2>
-            <button class="btn-close-modal" onclick="closeStatsModal()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="controls">
+                <div class="selector-group">
+                    <label for="monthSelect">MONTH:</label>
+                    <select id="monthSelect" class="nav-select" onchange="loadBranchStats(activeStatsBranch)">
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-back" onclick="showMainView()"><i class="fa-solid fa-arrow-left"></i> Back to Attendance Table</button>
+            </div>
         </div>
 
-        <!-- Pestañas de Branch (Países) -->
+        <!-- Pestañas de Navegación por País/Branch -->
         <div class="branch-tabs" id="branchTabs">
             <!-- Pestañas dinámicas -->
         </div>
 
-        <div class="stats-body">
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>AGENT NAME</th>
-                            <th>STATUS</th>
-                            <th>TIMES ON STATUS</th>
-                            <th>DATE(S)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="statsTableBody">
-                        <!-- Carga dinámica de Top Offenders -->
-                    </tbody>
-                </table>
-            </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>AGENT NAME</th>
+                        <th>STATUS</th>
+                        <th>TIMES ON STATUS</th>
+                        <th>DATE(S)</th>
+                    </tr>
+                </thead>
+                <tbody id="statsTableBody">
+                    <!-- Carga dinámica de Top Offenders -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -958,6 +927,10 @@
 
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
+
+    // Seleccionar por defecto el mes actual en las estadísticas
+    const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, '0');
+    document.getElementById('monthSelect').value = currentMonthStr;
 
     renderCurrentTable();
 
@@ -1392,18 +1365,21 @@
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    /* --- LÓGICA DE ESTADÍSTICAS DEL MES (MONTHLY STATISTICS) --- */
+    /* --- LÓGICA DE CAMBIO DE PANTALLA Y ESTADÍSTICAS DEL MES --- */
     const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
-    let activeStatsBranch = "Guatemala";
+    let activeStatsBranch = countrySelect.value || "Guatemala";
 
-    function openStatsModal() {
-        document.getElementById('statsModal').style.display = 'flex';
+    function showStatsView() {
+        document.getElementById('mainAttendanceView').style.display = 'none';
+        document.getElementById('statsView').style.display = 'block';
+        activeStatsBranch = countrySelect.value;
         renderBranchTabs();
         loadBranchStats(activeStatsBranch);
     }
 
-    function closeStatsModal() {
-        document.getElementById('statsModal').style.display = 'none';
+    function showMainView() {
+        document.getElementById('statsView').style.display = 'none';
+        document.getElementById('mainAttendanceView').style.display = 'block';
     }
 
     function renderBranchTabs() {
@@ -1427,6 +1403,7 @@
         const tbody = document.getElementById('statsTableBody');
         tbody.innerHTML = '';
 
+        const selectedMonth = document.getElementById('monthSelect').value;
         const employees = getCountryEmployees(branch);
         
         // Estatus considerados como "offenses"
@@ -1438,31 +1415,36 @@
         // Mapeo: AgentName -> { Status -> { count: X, dates: [] } }
         const offenderMap = {};
 
-        // Recorrer el LocalStorage buscando registros del país
+        // Recorrer el LocalStorage buscando registros del país y del mes seleccionado
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key.startsWith(`attendance_${branch}_`)) {
-                const dateStr = key.replace(`attendance_${branch}_`, '');
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    Object.keys(data).forEach(index => {
-                        const record = data[index];
-                        const status = record.status ? record.status.toUpperCase() : '';
-                        
-                        if (offenderStatuses.includes(status)) {
-                            const emp = employees[index];
-                            const agentName = emp ? emp.name : `Agente #${parseInt(index)+1}`;
+                const dateStr = key.replace(`attendance_${branch}_`, ''); // Formato esperable: YYYY-MM-DD
+                const parts = dateStr.split('-');
+                
+                // Verificar que coincida el mes seleccionado
+                if (parts.length === 3 && parts[1] === selectedMonth) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        Object.keys(data).forEach(index => {
+                            const record = data[index];
+                            const status = record.status ? record.status.toUpperCase() : '';
+                            
+                            if (offenderStatuses.includes(status)) {
+                                const emp = employees[index];
+                                const agentName = emp ? emp.name : `Agente #${parseInt(index)+1}`;
 
-                            if (!offenderMap[agentName]) offenderMap[agentName] = {};
-                            if (!offenderMap[agentName][status]) {
-                                offenderMap[agentName][status] = { count: 0, dates: [] };
+                                if (!offenderMap[agentName]) offenderMap[agentName] = {};
+                                if (!offenderMap[agentName][status]) {
+                                    offenderMap[agentName][status] = { count: 0, dates: [] };
+                                }
+
+                                offenderMap[agentName][status].count += 1;
+                                offenderMap[agentName][status].dates.push(dateStr);
                             }
-
-                            offenderMap[agentName][status].count += 1;
-                            offenderMap[agentName][status].dates.push(dateStr);
-                        }
-                    });
-                } catch(e){}
+                        });
+                    } catch(e){}
+                }
             }
         }
 
@@ -1482,14 +1464,15 @@
         // Ordenar descendentemente por cantidad de veces en el status
         offendersList.sort((a, b) => b.count - a.count);
 
+        const monthName = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
+
         if (offendersList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No hay incidencias de status registradas para ${branch}.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No hay incidencias de status registradas para ${branch} en el mes de ${monthName}.</td></tr>`;
             return;
         }
 
         offendersList.forEach(item => {
             const row = document.createElement('tr');
-            
             const datesBadges = item.dates.map(d => `<span class="dates-badge">${d}</span>`).join(' ');
 
             row.innerHTML = `
