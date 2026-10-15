@@ -69,7 +69,7 @@
             justify-content: center;
             flex-shrink: 0;
             line-height: 1;
-            color: var(--amber-color); /* Color amarillo exacto del título */
+            color: var(--amber-color);
         }
 
         .main-header-title {
@@ -143,6 +143,8 @@
         .btn-save:hover { background-color: #157347; }
         .btn-excel { background-color: var(--excel-color); }
         .btn-excel:hover { background-color: #0b5c30; }
+        .btn-stats { background-color: var(--global-color); }
+        .btn-stats:hover { background-color: #59319c; }
         .btn:active { transform: scale(0.98); }
 
         /* --- DASHBOARD COUNTERS --- */
@@ -217,12 +219,13 @@
             vertical-align: middle;
         }
 
-        /* --- ENCABEZADOS DEFAULT --- */
+        /* --- ENCABEZADOS CENTRADOS PARA TODAS LAS TABLAS --- */
         table thead tr th, th {
             position: sticky;
             top: 0;
             z-index: 10;
             font-weight: bold !important;
+            text-align: center !important;
         }
 
         /* --- COLORES DE ENCABEZADOS SEGÚN EL PAÍS --- */
@@ -244,6 +247,12 @@
             transition: background-color 0.2s, color 0.2s;
             background-color: #0b1329;
             color: #ffffff;
+        }
+
+        /* Centrado de la columna Status for the Day */
+        .status-cell, select.cell-select {
+            text-align: center !important;
+            text-align-last: center !important;
         }
 
         /* Dynamic Edit Mode Input Styling */
@@ -268,7 +277,7 @@
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             display: none;
-            z-index: 1000;
+            z-index: 2000;
         }
 
         /* --- CELDAS DE HORARIOS (CHECK IN / CHECK OUT) --- */
@@ -352,27 +361,122 @@
         .country-mexico      { background-color: #c8e6c9; color: #000; }
 
         /* --- COLORES PARA EL SELECTOR DE STATUS --- */
-        select.status-na                            { background-color: #ffffff !important; color: #333 !important; }
-        select.status-attended                      { background-color: #007e33 !important; color: #ffffff !important; }
-        select.status-day-off                       { background-color: #e0e0e0 !important; color: #000000 !important; }
-        select.status-late                          { background-color: #ff8a80 !important; color: #000000 !important; }
-        select.status-late-justified                { background-color: #ff6d00 !important; color: #ffffff !important; }
-        select.status-sick-day                      { background-color: #ffd600 !important; color: #000000 !important; }
-        select.status-medical-appointment           { background-color: #c0ca33 !important; color: #000000 !important; }
-        select.status-escalated-sst                 { background-color: #00e5ff !important; color: #000000 !important; }
-        select.status-vacation                      { background-color: #a5d6a7 !important; color: #000000 !important; }
-        select.status-loa                           { background-color: #0288d1 !important; color: #ffffff !important; }
-        select.status-absent                        { background-color: #cc0000 !important; color: #ffffff !important; font-weight: bold; }
-        select.status-no-call-no-show               { background-color: #4a0e17 !important; color: #ffffff !important; font-weight: bold; }
-        select.status-early-out                     { background-color: #90caf9 !important; color: #000000 !important; }
-        select.status-floating-holiday              { background-color: #ce93d8 !important; color: #000000 !important; }
-        select.status-emergency-day-off             { background-color: #aa00ff !important; color: #ffffff !important; }
-        select.status-disciplinary-suspension      { background-color: #616161 !important; color: #ffffff !important; }
-        select.status-us-holiday                    { background-color: #0d47a1 !important; color: #ffffff !important; }
-        select.status-country-holiday               { background-color: #00b0ff !important; color: #ffffff !important; }
-        select.status-bereavement-leave             { background-color: #000000 !important; color: #ffffff !important; }
-        select.status-marriage-paternity            { background-color: #ff007f !important; color: #ffffff !important; }
-        select.status-legal-process                 { background-color: #800020 !important; color: #ffffff !important; }
+        select.status-na                             { background-color: #ffffff !important; color: #333 !important; }
+        select.status-attended                       { background-color: #007e33 !important; color: #ffffff !important; }
+        select.status-day-off                        { background-color: #e0e0e0 !important; color: #000000 !important; }
+        select.status-late                           { background-color: #ff8a80 !important; color: #000000 !important; }
+        select.status-late-justified                 { background-color: #ff6d00 !important; color: #ffffff !important; }
+        select.status-sick-day                       { background-color: #ffd600 !important; color: #000000 !important; }
+        select.status-medical-appointment            { background-color: #c0ca33 !important; color: #000000 !important; }
+        select.status-escalated-sst                  { background-color: #00e5ff !important; color: #000000 !important; }
+        select.status-vacation                       { background-color: #a5d6a7 !important; color: #000000 !important; }
+        select.status-loa                            { background-color: #0288d1 !important; color: #ffffff !important; }
+        select.status-absent                         { background-color: #cc0000 !important; color: #ffffff !important; font-weight: bold; }
+        select.status-no-call-no-show                { background-color: #4a0e17 !important; color: #ffffff !important; font-weight: bold; }
+        select.status-early-out                      { background-color: #90caf9 !important; color: #000000 !important; }
+        select.status-floating-holiday               { background-color: #ce93d8 !important; color: #000000 !important; }
+        select.status-emergency-day-off              { background-color: #aa00ff !important; color: #ffffff !important; }
+        select.status-disciplinary-suspension        { background-color: #616161 !important; color: #ffffff !important; }
+        select.status-us-holiday                     { background-color: #0d47a1 !important; color: #ffffff !important; }
+        select.status-country-holiday                { background-color: #00b0ff !important; color: #ffffff !important; }
+        select.status-bereavement-leave              { background-color: #000000 !important; color: #ffffff !important; }
+        select.status-marriage-paternity             { background-color: #ff007f !important; color: #ffffff !important; }
+        select.status-legal-process                  { background-color: #800020 !important; color: #ffffff !important; }
+
+        /* --- MODAL DE ESTADÍSTICAS DEL MES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1500;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.7);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            margin: 0;
+            color: var(--amber-color);
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-close-modal {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .branch-tabs {
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid var(--amber-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+        }
+
+        .branch-tab-btn {
+            background-color: #0b1329;
+            color: #ffffff;
+            border: 1px solid var(--amber-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .branch-tab-btn.active {
+            background-color: var(--amber-color);
+            color: #000000;
+        }
+
+        .stats-body {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .dates-badge {
+            background-color: #1a2744;
+            color: #ffc107;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            display: inline-block;
+            margin: 2px;
+            border: 1px solid #334466;
+        }
     </style>
 </head>
 <body>
@@ -385,7 +489,7 @@
             <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
         </div>
         
-        <!-- MENÚS Y BOTONES EN LA PARTE DERECHA (EN INGLÉS) -->
+        <!-- MENÚS Y BOTONES EN LA PARTE DERECHA -->
         <div class="controls">
             <div class="selector-group">
                 <label for="countrySelect">COUNTRY:</label>
@@ -406,6 +510,7 @@
 
             <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
             <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
+            <button class="btn btn-stats" onclick="openStatsModal()">📈 Statistics of the Month</button>
         </div>
     </div>
 
@@ -462,7 +567,7 @@
                     <th>SUPERVISOR</th>
                     <th style="text-align: center;">CHECK IN (US TIME)</th>
                     <th style="text-align: center;">CHECK OUT (US TIME)</th>
-                    <th style="min-width: 220px;">STATUS FOR THE DAY</th>
+                    <th style="min-width: 220px; text-align: center;">STATUS FOR THE DAY</th>
                     <th style="min-width: 220px;">COMMENTS</th>
                     <th style="text-align: center; min-width: 100px;">ACTIONS</th>
                 </tr>
@@ -471,6 +576,39 @@
                 <!-- Contenido dinámico -->
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- MODAL DE ESTADÍSTICAS DEL MES -->
+<div id="statsModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title"><i class="fa-solid fa-chart-line"></i> Statistics of the Month - Top Offenders</h2>
+            <button class="btn-close-modal" onclick="closeStatsModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- Pestañas de Branch (Países) -->
+        <div class="branch-tabs" id="branchTabs">
+            <!-- Pestañas dinámicas -->
+        </div>
+
+        <div class="stats-body">
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>AGENT NAME</th>
+                            <th>STATUS</th>
+                            <th>TIMES ON STATUS</th>
+                            <th>DATE(S)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statsTableBody">
+                        <!-- Carga dinámica de Top Offenders -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -630,25 +768,26 @@
         localStorage.setItem(`CS_EMPLOYEES_LIST_${country}`, JSON.stringify(list));
     }
 
+    /* STATUS OPTIONS EN MAYÚSCULAS */
     const statusOptions = [
-        "", "N/A", "Attended", "Day Off", "Late", "Late Justified (Back Up Doc.)",
-        "Sick Day", "Schedule Medical Appointment", "Escalated to SST", "Vacation",
-        "LOA", "Absent", "No Call/No Show", "Early Out", "Floating Holiday",
-        "Emergency Day Off", "Disciplinary Suspension", "US Holiday", "Country Holiday",
-        "Bereavement Leave", "Marriage/Ma/Paternity Leaving", "Legal Process"
+        "", "N/A", "ATTENDED", "DAY OFF", "LATE", "LATE JUSTIFIED (BACK UP DOC.)",
+        "SICK DAY", "SCHEDULE MEDICAL APPOINTMENT", "ESCALATED TO SST", "VACATION",
+        "LOA", "ABSENT", "NO CALL/NO SHOW", "EARLY OUT", "FLOATING HOLIDAY",
+        "EMERGENCY DAY OFF", "DISCIPLINARY SUSPENSION", "US HOLIDAY", "COUNTRY HOLIDAY",
+        "BEREAVEMENT LEAVE", "MARRIAGE/MA/PATERNITY LEAVING", "LEGAL PROCESS"
     ];
 
     const statusClassMap = {
-        "N/A": "status-na", "Attended": "status-attended", "Day Off": "status-day-off",
-        "Late": "status-late", "Late Justified (Back Up Doc.)": "status-late-justified",
-        "Sick Day": "status-sick-day", "Schedule Medical Appointment": "status-medical-appointment",
-        "Escalated to SST": "status-escalated-sst", "Vacation": "status-vacation",
-        "LOA": "status-loa", "Absent": "status-absent", "No Call/No Show": "status-no-call-no-show",
-        "Early Out": "status-early-out", "Floating Holiday": "status-floating-holiday",
-        "Emergency Day Off": "status-emergency-day-off", "Disciplinary Suspension": "status-disciplinary-suspension",
-        "US Holiday": "status-us-holiday", "Country Holiday": "status-country-holiday",
-        "Bereavement Leave": "status-bereavement-leave",
-        "Marriage/Ma/Paternity Leaving": "status-marriage-paternity", "Legal Process": "status-legal-process"
+        "N/A": "status-na", "ATTENDED": "status-attended", "DAY OFF": "status-day-off",
+        "LATE": "status-late", "LATE JUSTIFIED (BACK UP DOC.)": "status-late-justified",
+        "SICK DAY": "status-sick-day", "SCHEDULE MEDICAL APPOINTMENT": "status-medical-appointment",
+        "ESCALATED TO SST": "status-escalated-sst", "VACATION": "status-vacation",
+        "LOA": "status-loa", "ABSENT": "status-absent", "NO CALL/NO SHOW": "status-no-call-no-show",
+        "EARLY OUT": "status-early-out", "FLOATING HOLIDAY": "status-floating-holiday",
+        "EMERGENCY DAY OFF": "status-emergency-day-off", "DISCIPLINARY SUSPENSION": "status-disciplinary-suspension",
+        "US HOLIDAY": "status-us-holiday", "COUNTRY HOLIDAY": "status-country-holiday",
+        "BEREAVEMENT LEAVE": "status-bereavement-leave",
+        "MARRIAGE/MA/PATERNITY LEAVING": "status-marriage-paternity", "LEGAL PROCESS": "status-legal-process"
     };
 
     const countryClassMap = {
@@ -658,30 +797,30 @@
     };
 
     const attendedStatuses = [
-        "Attended",
-        "Late",
-        "Late Justified (Back Up Doc.)",
-        "Early Out"
+        "ATTENDED",
+        "LATE",
+        "LATE JUSTIFIED (BACK UP DOC.)",
+        "EARLY OUT"
     ];
 
     const expectedAbsences = [
-        "Day Off",
-        "Schedule Medical Appointment",
-        "Vacation",
-        "Floating Holiday",
-        "Disciplinary Suspension",
-        "US Holiday",
-        "Country Holiday",
-        "Bereavement Leave",
-        "Marriage/Ma/Paternity Leaving",
-        "Legal Process"
+        "DAY OFF",
+        "SCHEDULE MEDICAL APPOINTMENT",
+        "VACATION",
+        "FLOATING HOLIDAY",
+        "DISCIPLINARY SUSPENSION",
+        "US HOLIDAY",
+        "COUNTRY HOLIDAY",
+        "BEREAVEMENT LEAVE",
+        "MARRIAGE/MA/PATERNITY LEAVING",
+        "LEGAL PROCESS"
     ];
 
     const unexpectedAbsences = [
-        "Absent",
-        "No Call/No Show",
-        "Sick Day",
-        "Emergency Day Off"
+        "ABSENT",
+        "NO CALL/NO SHOW",
+        "SICK DAY",
+        "EMERGENCY DAY OFF"
     ];
 
     const notPresentStatuses = [
@@ -873,7 +1012,7 @@
                 attendedCount++;
             }
             
-            if (val === 'Late' || val === 'Late Justified (Back Up Doc.)') {
+            if (val === 'LATE' || val === 'LATE JUSTIFIED (BACK UP DOC.)') {
                 latesCount++;
             }
             
@@ -995,7 +1134,7 @@
                     <span id="label-${index}-out">${emp.checkOut}</span>
                     <input type="text" id="input-${index}-out" class="edit-input" value="${emp.checkOut}" style="display:none; text-align:center;">
                 </td>
-                <td>
+                <td class="status-cell">
                     <select class="cell-select" id="status_${index}" onchange="updateSelectColor(this)">
                         ${optionsHtml}
                     </select>
@@ -1251,6 +1390,116 @@
         toast.innerText = message;
         toast.style.display = 'block';
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    /* --- LÓGICA DE ESTADÍSTICAS DEL MES (MONTHLY STATISTICS) --- */
+    const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
+    let activeStatsBranch = "Guatemala";
+
+    function openStatsModal() {
+        document.getElementById('statsModal').style.display = 'flex';
+        renderBranchTabs();
+        loadBranchStats(activeStatsBranch);
+    }
+
+    function closeStatsModal() {
+        document.getElementById('statsModal').style.display = 'none';
+    }
+
+    function renderBranchTabs() {
+        const tabsContainer = document.getElementById('branchTabs');
+        tabsContainer.innerHTML = '';
+
+        branches.forEach(branch => {
+            const btn = document.createElement('button');
+            btn.className = `branch-tab-btn ${branch === activeStatsBranch ? 'active' : ''}`;
+            btn.innerText = branch;
+            btn.onclick = () => {
+                activeStatsBranch = branch;
+                renderBranchTabs();
+                loadBranchStats(branch);
+            };
+            tabsContainer.appendChild(btn);
+        });
+    }
+
+    function loadBranchStats(branch) {
+        const tbody = document.getElementById('statsTableBody');
+        tbody.innerHTML = '';
+
+        const employees = getCountryEmployees(branch);
+        
+        // Estatus considerados como "offenses"
+        const offenderStatuses = [
+            "ABSENT", "NO CALL/NO SHOW", "LATE", "LATE JUSTIFIED (BACK UP DOC.)", 
+            "SICK DAY", "EMERGENCY DAY OFF", "EARLY OUT", "DISCIPLINARY SUSPENSION"
+        ];
+
+        // Mapeo: AgentName -> { Status -> { count: X, dates: [] } }
+        const offenderMap = {};
+
+        // Recorrer el LocalStorage buscando registros del país
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith(`attendance_${branch}_`)) {
+                const dateStr = key.replace(`attendance_${branch}_`, '');
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    Object.keys(data).forEach(index => {
+                        const record = data[index];
+                        const status = record.status ? record.status.toUpperCase() : '';
+                        
+                        if (offenderStatuses.includes(status)) {
+                            const emp = employees[index];
+                            const agentName = emp ? emp.name : `Agente #${parseInt(index)+1}`;
+
+                            if (!offenderMap[agentName]) offenderMap[agentName] = {};
+                            if (!offenderMap[agentName][status]) {
+                                offenderMap[agentName][status] = { count: 0, dates: [] };
+                            }
+
+                            offenderMap[agentName][status].count += 1;
+                            offenderMap[agentName][status].dates.push(dateStr);
+                        }
+                    });
+                } catch(e){}
+            }
+        }
+
+        // Convertir a array para ordenar
+        let offendersList = [];
+        Object.keys(offenderMap).forEach(agentName => {
+            Object.keys(offenderMap[agentName]).forEach(status => {
+                offendersList.push({
+                    name: agentName,
+                    status: status,
+                    count: offenderMap[agentName][status].count,
+                    dates: offenderMap[agentName][status].dates
+                });
+            });
+        });
+
+        // Ordenar descendentemente por cantidad de veces en el status
+        offendersList.sort((a, b) => b.count - a.count);
+
+        if (offendersList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No hay incidencias de status registradas para ${branch}.</td></tr>`;
+            return;
+        }
+
+        offendersList.forEach(item => {
+            const row = document.createElement('tr');
+            
+            const datesBadges = item.dates.map(d => `<span class="dates-badge">${d}</span>`).join(' ');
+
+            row.innerHTML = `
+                <td><strong>${item.name}</strong></td>
+                <td style="text-align: center;"><span style="padding: 4px 8px; border-radius: 4px;" class="${statusClassMap[item.status] || ''}">${item.status}</span></td>
+                <td style="text-align: center; font-weight: bold; font-size: 1.1rem; color: var(--amber-color);">${item.count}</td>
+                <td>${datesBadges}</td>
+            `;
+            tbody.appendChild(row);
+        });
     }
 </script>
 
