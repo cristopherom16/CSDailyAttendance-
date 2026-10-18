@@ -168,9 +168,32 @@
         .btn-stats:hover { background-color: #59319c; }
         .btn-back { background-color: #6c757d; }
         .btn-back:hover { background-color: #5a6268; }
-        .btn-theme { background-color: #000000; color: #ffc107; border: 1px solid var(--amber-color); }
-        .btn-theme:hover { background-color: #212529; }
         .btn:active { transform: scale(0.98); }
+
+        /* --- BOTÓN FLOTANTE PEQUEÑO SOLO CON ÍCONO --- */
+        .btn-theme-floating {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 9999;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background-color: #000000;
+            color: #ffc107;
+            border: 2px solid var(--amber-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .btn-theme-floating:hover {
+            transform: scale(1.1);
+            background-color: #212529;
+        }
 
         /* --- DASHBOARD COUNTERS --- */
         .stats-container {
@@ -450,6 +473,11 @@
 </head>
 <body>
 
+<!-- BOTÓN FLOTANTE EN ESQUINA INFERIOR IZQUIERDA -->
+<button id="themeToggleBtn" class="btn-theme-floating" onclick="toggleTheme()" title="Cambiar Tema">
+    <i class="fa-solid fa-sun" id="themeIcon"></i>
+</button>
+
 <div class="container">
     <!-- VISTA 1: TABLA PRINCIPAL DE ASISTENCIA DIARIA -->
     <div id="mainAttendanceView">
@@ -462,10 +490,6 @@
             
             <!-- MENÚS Y BOTONES EN LA PARTE DERECHA -->
             <div class="controls">
-                <button id="themeToggleBtn" class="btn btn-theme" onclick="toggleTheme()">
-                    <i class="fa-solid fa-sun" id="themeIcon"></i> <span id="themeText">Light Mode</span>
-                </button>
-
                 <div class="selector-group">
                     <label for="countrySelect">COUNTRY:</label>
                     <select id="countrySelect" class="nav-select">
@@ -963,21 +987,17 @@
     if (localStorage.getItem('CS_THEME') === 'light') {
         document.body.classList.add('light-mode');
         document.getElementById('themeIcon').className = 'fa-solid fa-moon';
-        document.getElementById('themeText').innerText = 'Dark Mode';
     }
 
     function toggleTheme() {
         const isLight = document.body.classList.toggle('light-mode');
         const themeIcon = document.getElementById('themeIcon');
-        const themeText = document.getElementById('themeText');
 
         if (isLight) {
             themeIcon.className = 'fa-solid fa-moon';
-            themeText.innerText = 'Dark Mode';
             localStorage.setItem('CS_THEME', 'light');
         } else {
             themeIcon.className = 'fa-solid fa-sun';
-            themeText.innerText = 'Light Mode';
             localStorage.setItem('CS_THEME', 'dark');
         }
     }
