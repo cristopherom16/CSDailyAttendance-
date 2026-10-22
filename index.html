@@ -29,6 +29,7 @@
             --stat-card-bg: #182547;
             --stat-title-color: #b0bec5;
             --section-title-color: #ffffff;
+            --overlay-bg: rgba(0, 0, 0, 0.75);
         }
 
         /* --- MODO CLARO (LIGHT MODE) --- */
@@ -42,6 +43,7 @@
             --stat-card-bg: #f8f9fa;
             --stat-title-color: #495057;
             --section-title-color: #0b1329;
+            --overlay-bg: rgba(0, 0, 0, 0.4);
         }
 
         * { box-sizing: border-box; }
@@ -412,7 +414,7 @@
         select.status-na                             { background-color: #ffffff !important; color: #333 !important; }
         select.status-attended                       { background-color: #007e33 !important; color: #ffffff !important; }
         select.status-day-off                        { background-color: #e0e0e0 !important; color: #000000 !important; }
-        select.status-late                           { background-color: #ff8a80 !important; color: #000000 !important; }
+        select.status-late                            { background-color: #ff8a80 !important; color: #000000 !important; }
         select.status-late-justified                 { background-color: #ff6d00 !important; color: #ffffff !important; }
         select.status-sick-day                       { background-color: #ffd600 !important; color: #000000 !important; }
         select.status-medical-appointment            { background-color: #c0ca33 !important; color: #000000 !important; }
@@ -468,6 +470,89 @@
             display: inline-block;
             margin: 2px;
             border: 1px solid #334466;
+        }
+
+        /* --- CUSTOM MODAL POPUP --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--overlay-bg);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(3px);
+        }
+
+        .modal-card {
+            background: var(--card-bg);
+            border: 2px solid var(--amber-color);
+            border-radius: 12px;
+            padding: 25px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            text-align: center;
+            color: var(--text-color);
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-title {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--amber-color);
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--amber-color);
+            border-radius: 6px;
+            background-color: var(--input-bg);
+            color: var(--input-text);
+            font-size: 1rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .modal-btn-confirm {
+            background-color: var(--amber-color);
+            color: #000000;
+        }
+
+        .modal-btn-cancel {
+            background-color: #6c757d;
+            color: #ffffff;
+        }
+
+        .modal-btn:hover {
+            opacity: 0.9;
         }
     </style>
 </head>
@@ -633,6 +718,18 @@
 </div>
 
 <div id="toast" class="toast">Guardado exitosamente</div>
+
+<!-- MODAL FLOTANTE PARA AUTENTICACIÓN -->
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3 id="modalTitle" class="modal-title">Please Enter Password</h3>
+        <input type="password" id="modalPasswordInput" class="modal-input" placeholder="Password...">
+        <div class="modal-buttons">
+            <button class="modal-btn modal-btn-cancel" onclick="closeAuthModal(false)">Cancel</button>
+            <button class="modal-btn modal-btn-confirm" onclick="closeAuthModal(true)">OK</button>
+        </div>
+    </div>
+</div>
 
 <script>
     const MANAGEMENT_PASSWORD = "management2026!";
@@ -975,6 +1072,7 @@
 
     let previousCountry = countrySelect.value;
     let draggedIndex = null;
+    let authCallback = null;
 
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
@@ -1002,32 +1100,58 @@
         }
     }
 
-    renderCurrentTable();
+    /* --- LÓGICA DE MODAL DE AUTENTICACIÓN --- */
+    function promptPassword(titleText, callback) {
+        document.getElementById('modalTitle').innerText = titleText;
+        const input = document.getElementById('modalPasswordInput');
+        input.value = '';
+        document.getElementById('passwordModal').style.display = 'flex';
+        input.focus();
+        authCallback = callback;
+    }
 
-    function checkAdminPassword() {
-        const inputPassword = prompt("Autenticación requerida. Ingrese la contraseña de administración:");
-        if (inputPassword === MANAGEMENT_PASSWORD) {
-            return true;
-        } else {
-            alert("Contraseña incorrecta. Acción denegada.");
-            return false;
+    function closeAuthModal(isConfirmed) {
+        const modal = document.getElementById('passwordModal');
+        const pwd = document.getElementById('modalPasswordInput').value;
+        modal.style.display = 'none';
+        if (authCallback) {
+            authCallback(isConfirmed ? pwd : null);
+            authCallback = null;
         }
+    }
+
+    document.getElementById('modalPasswordInput').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') closeAuthModal(true);
+        if (e.key === 'Escape') closeAuthModal(false);
+    });
+
+    function checkAdminPassword(callback) {
+        promptPassword("Please enter your Management Password", function(inputPassword) {
+            if (inputPassword === MANAGEMENT_PASSWORD) {
+                callback(true);
+            } else {
+                alert("Incorrect password. Access denied.");
+                callback(false);
+            }
+        });
     }
 
     countrySelect.addEventListener('change', function (event) {
         const selectedCountry = this.value;
         const requiredPassword = passwordsByCountry[selectedCountry];
 
-        const inputPassword = prompt(`Ingrese la contraseña para ingresar a ${selectedCountry}:`);
-
-        if (inputPassword === requiredPassword) {
-            previousCountry = selectedCountry;
-            renderCurrentTable();
-        } else {
-            alert("Contraseña incorrecta. Acceso denegado.");
-            this.value = previousCountry;
-        }
+        promptPassword("Please enter your Country Password", function(inputPassword) {
+            if (inputPassword === requiredPassword) {
+                previousCountry = selectedCountry;
+                renderCurrentTable();
+            } else {
+                alert("Incorrect password. Access denied.");
+                countrySelect.value = previousCountry;
+            }
+        });
     });
+
+    renderCurrentTable();
 
     dateInput.addEventListener('change', renderCurrentTable);
 
@@ -1234,21 +1358,23 @@
     }
 
     function enableRowEdit(index) {
-        if (!checkAdminPassword()) return;
+        checkAdminPassword(function(isAuthorized) {
+            if (!isAuthorized) return;
 
-        const fields = ['name', 'team', 'sup', 'in', 'out'];
-        fields.forEach(f => {
-            const lbl = document.getElementById(`label-${index}-${f}`);
-            const inp = document.getElementById(`input-${index}-${f}`);
-            if (lbl) lbl.style.display = 'none';
-            if (inp) inp.style.display = 'inline-block';
+            const fields = ['name', 'team', 'sup', 'in', 'out'];
+            fields.forEach(f => {
+                const lbl = document.getElementById(`label-${index}-${f}`);
+                const inp = document.getElementById(`input-${index}-${f}`);
+                if (lbl) lbl.style.display = 'none';
+                if (inp) inp.style.display = 'inline-block';
+            });
+
+            const btnGroup = document.getElementById(`btn-group-${index}`);
+            btnGroup.innerHTML = `
+                <button class="action-btn btn-save-row" onclick="saveRowEdit(${index})" title="Guardar Cambios"><i class="fa-solid fa-floppy-disk"></i></button>
+                <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Eliminar Agente"><i class="fa-solid fa-trash"></i></button>
+            `;
         });
-
-        const btnGroup = document.getElementById(`btn-group-${index}`);
-        btnGroup.innerHTML = `
-            <button class="action-btn btn-save-row" onclick="saveRowEdit(${index})" title="Guardar Cambios"><i class="fa-solid fa-floppy-disk"></i></button>
-            <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Eliminar Agente"><i class="fa-solid fa-trash"></i></button>
-        `;
     }
 
     function saveRowEdit(index) {
@@ -1269,40 +1395,44 @@
     }
 
     function deleteAgent(index) {
-        if (!checkAdminPassword()) return;
+        checkAdminPassword(function(isAuthorized) {
+            if (!isAuthorized) return;
 
-        const country = countrySelect.value;
-        const employees = getCountryEmployees(country);
+            const country = countrySelect.value;
+            const employees = getCountryEmployees(country);
 
-        if (confirm(`¿Está seguro de eliminar al agente "${employees[index].name}"?`)) {
-            employees.splice(index, 1);
-            saveCountryEmployees(country, employees);
-            renderCurrentTable();
-            showToast("Agente eliminado exitosamente.");
-        }
+            if (confirm(`¿Está seguro de eliminar al agente "${employees[index].name}"?`)) {
+                employees.splice(index, 1);
+                saveCountryEmployees(country, employees);
+                renderCurrentTable();
+                showToast("Agente eliminado exitosamente.");
+            }
+        });
     }
 
     function addAgent() {
-        if (!checkAdminPassword()) return;
+        checkAdminPassword(function(isAuthorized) {
+            if (!isAuthorized) return;
 
-        const country = countrySelect.value;
-        const employees = getCountryEmployees(country);
+            const country = countrySelect.value;
+            const employees = getCountryEmployees(country);
 
-        const newAgent = {
-            name: "Nuevo Agente",
-            team: "OBS - Cases",
-            supervisor: "Supervisor",
-            checkIn: "08:00:00",
-            checkOut: "17:00:00"
-        };
+            const newAgent = {
+                name: "Nuevo Agente",
+                team: "OBS - Cases",
+                supervisor: "Supervisor",
+                checkIn: "08:00:00",
+                checkOut: "17:00:00"
+            };
 
-        employees.push(newAgent);
-        saveCountryEmployees(country, employees);
-        renderCurrentTable();
+            employees.push(newAgent);
+            saveCountryEmployees(country, employees);
+            renderCurrentTable();
 
-        const newIndex = employees.length - 1;
-        enableRowEdit(newIndex);
-        showToast("Nuevo agente añadido. Puedes editar su información.");
+            const newIndex = employees.length - 1;
+            enableRowEdit(newIndex);
+            showToast("Nuevo agente añadido. Puedes editar su información.");
+        });
     }
 
     function saveData() {
