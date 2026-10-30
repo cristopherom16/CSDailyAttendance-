@@ -167,8 +167,6 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
-        .btn-backup { background-color: #0288d1; }
-        .btn-backup:hover { background-color: #026aa7; }
         .btn-back { background-color: #6c757d; }
         .btn-back:hover { background-color: #5a6268; }
         .btn:active { transform: scale(0.98); }
@@ -567,9 +565,6 @@
                 <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
                 <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
                 <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
-                <button class="btn btn-backup" onclick="exportDatabaseBackup()" title="Descargar respaldo completo del año">💾 Export Backup</button>
-                <button class="btn btn-backup" onclick="document.getElementById('backupFileInput').click()" title="Restaurar datos guardados">📥 Import Backup</button>
-                <input type="file" id="backupFileInput" accept=".json" style="display:none;" onchange="importDatabaseBackup(event)">
             </div>
         </div>
 
@@ -660,6 +655,13 @@
                     </select>
                 </div>
 
+                <div class="selector-group">
+                    <label for="yearSelect">YEAR:</label>
+                    <select id="yearSelect" class="nav-select" onchange="loadBranchStats(activeStatsBranch)">
+                        <!-- Dinámico según año actual -->
+                    </select>
+                </div>
+
                 <button class="btn btn-back" onclick="showMainView()"><i class="fa-solid fa-arrow-left"></i> Back to Attendance Table</button>
             </div>
         </div>
@@ -705,7 +707,6 @@
     const STORE_EMPLOYEES = "employees_store";
     let dbInstance = null;
 
-    // Prohíbe al navegador desalojar los datos
     async function requestStoragePersistence() {
         if (navigator.storage && navigator.storage.persist) {
             const isPersisted = await navigator.storage.persisted();
@@ -761,7 +762,6 @@
                 if (req.result && req.result.data) {
                     resolve(req.result.data);
                 } else {
-                    // Migración retrocompatible limpia si aún estaba en localStorage
                     try {
                         const legacyKey = storeName === STORE_EMPLOYEES ? `CS_EMPLOYEES_LIST_${key}` : key;
                         const legacy = localStorage.getItem(legacyKey);
@@ -1103,10 +1103,22 @@
     let draggedIndex = null;
     let authCallback = null;
 
-    const today = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    const today = todayDate.toISOString().split('T')[0];
     dateInput.value = today;
 
-    const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, '0');
+    // Poblar Selector de Años en Estadísticas
+    const currentYear = todayDate.getFullYear();
+    const yearSelect = document.getElementById('yearSelect');
+    for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+        const opt = document.createElement('option');
+        opt.value = y.toString();
+        opt.innerText = y.toString();
+        if (y === currentYear) opt.selected = true;
+        yearSelect.appendChild(opt);
+    }
+
+    const currentMonthStr = String(todayDate.getMonth() + 1).padStart(2, '0');
     document.getElementById('monthSelect').value = currentMonthStr;
 
     if (localStorage.getItem('CS_THEME') === 'light') {
@@ -1176,7 +1188,6 @@
         });
     });
 
-    // Carga inicial
     renderCurrentTable();
     dateInput.addEventListener('change', renderCurrentTable);
 
@@ -1466,7 +1477,7 @@
         });
     }
 
-    /* --- GUARDADO TOTAL EN INDEXEDDB (CAPACIDAD ILIMITADA) --- */
+    /* --- GUARDADO EN INDEXEDDB --- */
     async function saveData() {
         const country = countrySelect ? countrySelect.value : '';
         const selectedDate = dateInput ? dateInput.value : '';
@@ -1499,69 +1510,6 @@
             console.error("Error al guardar en IndexedDB:", error);
             alert("Error al guardar: " + error.message);
         }
-    }
-
-    /* --- SISTEMA DE RESPALDO Y RESTAURACIÓN --- */
-    async function exportDatabaseBackup() {
-        const allRecords = await dbGetAll(STORE_ATTENDANCE);
-        const allEmployees = await dbGetAll(STORE_EMPLOYEES);
-
-        const exportObj = {
-            version: 2,
-            exportDate: new Date().toISOString(),
-            records: allRecords,
-            employees: allEmployees
-        };
-
-        const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Attendance_Full_Backup_${today}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast("¡Respaldo anual descargado con éxito!");
-    }
-
-    function importDatabaseBackup(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        checkAdminPassword(async function(isAuthorized) {
-            if (!isAuthorized) {
-                event.target.value = '';
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (parsed.records && Array.isArray(parsed.records)) {
-                        for (const r of parsed.records) {
-                            if (r.id && r.data) {
-                                await dbPut(STORE_ATTENDANCE, "id", r.id, r.data);
-                            }
-                        }
-                    }
-                    if (parsed.employees && Array.isArray(parsed.employees)) {
-                        for (const empEntry of parsed.employees) {
-                            if (empEntry.country && empEntry.data) {
-                                await dbPut(STORE_EMPLOYEES, "country", empEntry.country, empEntry.data);
-                            }
-                        }
-                    }
-                    showToast("¡Datos restaurados con éxito!");
-                    renderCurrentTable();
-                } catch(err) {
-                    alert("El archivo de respaldo no es válido: " + err.message);
-                }
-                event.target.value = '';
-            };
-            reader.readAsText(file);
-        });
     }
 
     async function exportToExcel() {
@@ -1700,11 +1648,13 @@
         });
     }
 
+    /* --- MOTOR CORREGIDO DE STATISTICS OF THE MONTH --- */
     async function loadBranchStats(branch) {
         const tbody = document.getElementById('statsTableBody');
-        tbody.innerHTML = '';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Cargando estadísticas...</td></tr>';
 
         const selectedMonth = document.getElementById('monthSelect').value;
+        const selectedYear = document.getElementById('yearSelect').value;
         const employees = await getCountryEmployees(branch);
         
         const offenderStatuses = [
@@ -1713,34 +1663,61 @@
         ];
 
         const offenderMap = {};
-        const allRecords = await dbGetAll(STORE_ATTENDANCE);
 
-        allRecords.forEach(item => {
-            const key = item.id;
-            if (key && key.startsWith(`attendance_${branch}_`)) {
-                const dateStr = key.replace(`attendance_${branch}_`, '');
+        // 1. Obtener registros de IndexedDB
+        const allIndexedRecords = await dbGetAll(STORE_ATTENDANCE);
+        const combinedDataMap = new Map();
+
+        allIndexedRecords.forEach(item => {
+            if (item && item.id && item.data) {
+                combinedDataMap.set(item.id, item.data);
+            }
+        });
+
+        // 2. Integrar datos históricos de localStorage que pudieran existir
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`attendance_${branch}_`) && !combinedDataMap.has(key)) {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(key));
+                    if (parsed) combinedDataMap.set(key, parsed);
+                } catch(e) {}
+            }
+        }
+
+        // 3. Procesar datos del país, mes y año especificados
+        combinedDataMap.forEach((data, key) => {
+            if (key.startsWith(`attendance_${branch}_`)) {
+                const dateStr = key.replace(`attendance_${branch}_`, '').trim();
                 const parts = dateStr.split('-');
                 
-                if (parts.length === 3 && parts[1] === selectedMonth) {
-                    const data = item.data || {};
-                    Object.keys(data).forEach(index => {
-                        const record = data[index];
-                        if (!record) return;
-                        const status = record.status ? record.status.toUpperCase() : '';
-                        
-                        if (offenderStatuses.includes(status)) {
-                            const emp = employees[index];
-                            const agentName = emp ? emp.name : `Agente #${parseInt(index)+1}`;
+                // Valida año (parts[0]) y mes (parts[1])
+                if (parts.length === 3) {
+                    const recYear = parts[0];
+                    const recMonth = parts[1];
 
-                            if (!offenderMap[agentName]) offenderMap[agentName] = {};
-                            if (!offenderMap[agentName][status]) {
-                                offenderMap[agentName][status] = { count: 0, dates: [] };
+                    if (recYear === selectedYear && recMonth === selectedMonth) {
+                        Object.keys(data).forEach(index => {
+                            const record = data[index];
+                            if (!record) return;
+                            const status = (record.status || '').trim().toUpperCase();
+                            
+                            if (offenderStatuses.includes(status)) {
+                                const emp = employees[parseInt(index, 10)];
+                                const agentName = emp ? emp.name : `Agente #${parseInt(index, 10) + 1}`;
+
+                                if (!offenderMap[agentName]) offenderMap[agentName] = {};
+                                if (!offenderMap[agentName][status]) {
+                                    offenderMap[agentName][status] = { count: 0, dates: [] };
+                                }
+
+                                offenderMap[agentName][status].count += 1;
+                                if (!offenderMap[agentName][status].dates.includes(dateStr)) {
+                                    offenderMap[agentName][status].dates.push(dateStr);
+                                }
                             }
-
-                            offenderMap[agentName][status].count += 1;
-                            offenderMap[agentName][status].dates.push(dateStr);
-                        }
-                    });
+                        });
+                    }
                 }
             }
         });
@@ -1752,20 +1729,22 @@
                     name: agentName,
                     status: status,
                     count: offenderMap[agentName][status].count,
-                    dates: offenderMap[agentName][status].dates
+                    dates: offenderMap[agentName][status].dates.sort()
                 });
             });
         });
 
+        // Ordenar de mayor a menor número de incidencias
         offendersList.sort((a, b) => b.count - a.count);
 
         const monthName = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
 
         if (offendersList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No hay incidencias de status registradas para ${branch} en el mes de ${monthName}.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No hay incidencias registradas para ${branch} en ${monthName} de ${selectedYear}.</td></tr>`;
             return;
         }
 
+        tbody.innerHTML = '';
         offendersList.forEach(item => {
             const row = document.createElement('tr');
             const datesBadges = item.dates.map(d => `<span class="dates-badge">${d}</span>`).join(' ');
