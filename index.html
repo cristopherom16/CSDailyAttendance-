@@ -172,7 +172,6 @@
         .btn-back:hover { background-color: #5a6268; }
         .btn:active { transform: scale(0.98); }
 
-        /* --- BOTÓN FLOTANTE --- */
         .btn-theme-floating {
             position: fixed;
             bottom: 20px;
@@ -197,7 +196,6 @@
             background-color: #212529;
         }
 
-        /* --- DASHBOARD COUNTERS --- */
         .stats-container {
             display: flex;
             gap: 15px;
@@ -540,7 +538,6 @@
 </button>
 
 <div class="container">
-    <!-- VISTA 1: TABLA PRINCIPAL DE ASISTENCIA DIARIA -->
     <div id="mainAttendanceView">
         <div class="header">
             <div class="header-title-container">
@@ -628,13 +625,11 @@
                     </tr>
                 </thead>
                 <tbody id="attendanceTableBody">
-                    <!-- Contenido dinámico -->
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- VISTA 2: ESTADÍSTICAS DEL MES -->
     <div id="statsView" style="display: none;">
         <div class="header">
             <div class="header-title-container">
@@ -715,7 +710,7 @@
             {"name": "Daniel E. Hernandez Soto", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
             {"name": "Brian Lopez", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
             {"name": "Karen Medinilla", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
-            {"name": "Marvin Sandoval", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Marvin Sandoval", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkIn": "07:00:00", "checkOut": "16:00:00"},
             {"name": "Cristopher Orellana", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "08:00:00", "checkOut": "17:00:00"},
             {"name": "Diana Solis", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "08:00:00", "checkOut": "17:00:00"},
             {"name": "Armando Valenzuela", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "08:00:00", "checkOut": "17:00:00"},
@@ -1125,7 +1120,7 @@
 
         const selects = document.querySelectorAll('.cell-select');
         selects.forEach(select => {
-            const val = select.value;
+            const val = select ? select.value : '';
             if (attendedStatuses.includes(val)) attendedCount++;
             if (val === 'LATE' || val === 'LATE JUSTIFIED (BACK UP DOC.)') latesCount++;
             if (notPresentStatuses.includes(val)) notPresentCount++;
@@ -1133,38 +1128,58 @@
             if (unexpectedAbsences.includes(val)) unexpectedCount++;
         });
 
-        document.getElementById('countAttended').innerText = attendedCount;
-        document.getElementById('countLates').innerText = latesCount;
-        document.getElementById('countNotPresent').innerText = notPresentCount;
-        document.getElementById('countExpectedAbsences').innerText = expectedCount;
-        document.getElementById('countUnexpectedAbsences').innerText = unexpectedCount;
+        const elAtt = document.getElementById('countAttended');
+        const elLat = document.getElementById('countLates');
+        const elNot = document.getElementById('countNotPresent');
+        const elExp = document.getElementById('countExpectedAbsences');
+        const elUnexp = document.getElementById('countUnexpectedAbsences');
 
-        updateGlobalCounters();
+        if (elAtt) elAtt.innerText = attendedCount;
+        if (elLat) elLat.innerText = latesCount;
+        if (elNot) elNot.innerText = notPresentCount;
+        if (elExp) elExp.innerText = expectedCount;
+        if (elUnexp) elUnexp.innerText = unexpectedCount;
+
+        try {
+            updateGlobalCounters();
+        } catch(e) {
+            console.warn("Aviso al actualizar contadores globales:", e);
+        }
     }
 
     function updateGlobalCounters() {
-        const selectedDate = dateInput.value;
-        const currentCountry = countrySelect.value;
+        const selectedDate = dateInput ? dateInput.value : '';
+        const currentCountry = countrySelect ? countrySelect.value : '';
         let globalAttended = 0;
         let globalNotPresent = 0;
+
+        if (!selectedDate) return;
 
         Object.keys(passwordsByCountry).forEach(c => {
             const storageKey = `attendance_${c}_${selectedDate}`;
             let savedData = {};
             try {
-                savedData = JSON.parse(localStorage.getItem(storageKey)) || {};
+                const item = localStorage.getItem(storageKey);
+                if (item) savedData = JSON.parse(item) || {};
             } catch(e) {
                 savedData = {};
             }
+
             const employees = getCountryEmployees(c);
 
             employees.forEach((_, idx) => {
                 let statusVal = '';
                 if (c === currentCountry) {
                     const sel = document.getElementById(`status_${idx}`);
-                    statusVal = sel ? sel.value : (savedData[idx] ? savedData[idx].status : '');
+                    if (sel) {
+                        statusVal = sel.value;
+                    } else if (savedData && savedData[idx] && typeof savedData[idx].status === 'string') {
+                        statusVal = savedData[idx].status;
+                    }
                 } else {
-                    statusVal = savedData[idx] ? savedData[idx].status : '';
+                    if (savedData && savedData[idx] && typeof savedData[idx].status === 'string') {
+                        statusVal = savedData[idx].status;
+                    }
                 }
 
                 if (attendedStatuses.includes(statusVal)) {
@@ -1176,8 +1191,10 @@
             });
         });
 
-        document.getElementById('globalCountAttended').innerText = globalAttended;
-        document.getElementById('globalCountNotPresent').innerText = globalNotPresent;
+        const gAtt = document.getElementById('globalCountAttended');
+        const gNot = document.getElementById('globalCountNotPresent');
+        if (gAtt) gAtt.innerText = globalAttended;
+        if (gNot) gNot.innerText = globalNotPresent;
     }
 
     function renderCurrentTable() {
@@ -1197,7 +1214,8 @@
         const storageKey = `attendance_${country}_${selectedDate}`;
         let savedData = {};
         try {
-            savedData = JSON.parse(localStorage.getItem(storageKey)) || {};
+            const item = localStorage.getItem(storageKey);
+            if (item) savedData = JSON.parse(item) || {};
         } catch(e) {
             savedData = {};
         }
@@ -1216,8 +1234,8 @@
             row.addEventListener('drop', (e) => handleDrop(e, index));
             row.addEventListener('dragend', handleDragEnd);
 
-            const savedStatus = savedData[index] ? (savedData[index].status || '') : '';
-            const savedComments = savedData[index] ? (savedData[index].comments || '') : '';
+            const savedStatus = (savedData && savedData[index] && savedData[index].status) ? savedData[index].status : '';
+            const savedComments = (savedData && savedData[index] && savedData[index].comments) ? savedData[index].comments : '';
 
             let optionsHtml = statusOptions.map(opt => 
                 `<option value="${opt}" ${savedStatus === opt ? 'selected' : ''}>${opt}</option>`
@@ -1384,10 +1402,10 @@
         });
     }
 
-    /* --- FUNCIÓN SAVE DATA CORREGIDA Y ROBUSTA --- */
+    /* --- SAVE DATA ROBUSTO CON PROTECCIÓN TOTAL CONTRA FALLOS --- */
     function saveData() {
-        const country = countrySelect.value;
-        const selectedDate = dateInput.value;
+        const country = countrySelect ? countrySelect.value : '';
+        const selectedDate = dateInput ? dateInput.value : '';
 
         if (!selectedDate) {
             alert("Por favor selecciona una fecha.");
@@ -1402,8 +1420,8 @@
                 const statusElem = document.getElementById(`status_${index}`);
                 const commentsElem = document.getElementById(`comments_${index}`);
 
-                const status = statusElem ? statusElem.value : '';
-                const comments = commentsElem ? commentsElem.value : '';
+                const status = (statusElem && statusElem.value) ? statusElem.value : '';
+                const comments = (commentsElem && commentsElem.value) ? commentsElem.value : '';
 
                 dataToSave[index] = { status: status, comments: comments };
             });
@@ -1412,10 +1430,15 @@
             localStorage.setItem(storageKey, JSON.stringify(dataToSave));
 
             showToast(`¡Información de ${country} guardada para el ${selectedDate}!`);
-            updateGlobalCounters();
+
+            try {
+                updateGlobalCounters();
+            } catch (counterError) {
+                console.warn("Guardado exitoso, pero hubo un error menor calculando contadores globales:", counterError);
+            }
         } catch (error) {
-            console.error("Error al guardar asistencia:", error);
-            alert("Ocurrió un error al intentar guardar los datos. Revisa la consola.");
+            console.error("Error al persistir en localStorage:", error);
+            alert("Error al guardar: " + (error.message || "Verifique los permisos del navegador o espacio disponible."));
         }
     }
 
@@ -1515,6 +1538,7 @@
 
     function showToast(message) {
         const toast = document.getElementById('toast');
+        if (!toast) return;
         toast.innerText = message;
         toast.style.display = 'block';
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
@@ -1576,7 +1600,8 @@
                 
                 if (parts.length === 3 && parts[1] === selectedMonth) {
                     try {
-                        const data = JSON.parse(localStorage.getItem(key)) || {};
+                        const raw = localStorage.getItem(key);
+                        const data = raw ? JSON.parse(raw) : {};
                         Object.keys(data).forEach(index => {
                             const record = data[index];
                             if (!record) return;
