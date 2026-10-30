@@ -121,7 +121,7 @@
         .controls {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
@@ -148,15 +148,15 @@
         .btn {
             color: white;
             border: none;
-            padding: 10px 18px;
-            font-size: 0.95rem;
+            padding: 9px 15px;
+            font-size: 0.92rem;
             font-weight: 600;
             border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
         }
 
         .btn-add-agent { background-color: var(--primary-color); }
@@ -167,8 +167,8 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
-        .btn-cleanup { background-color: #b02a37; }
-        .btn-cleanup:hover { background-color: #8c1c27; }
+        .btn-backup { background-color: #0288d1; }
+        .btn-backup:hover { background-color: #026aa7; }
         .btn-back { background-color: #6c757d; }
         .btn-back:hover { background-color: #5a6268; }
         .btn:active { transform: scale(0.98); }
@@ -567,7 +567,9 @@
                 <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
                 <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
                 <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
-                <button class="btn btn-cleanup" onclick="cleanOldAttendancePrompt()" title="Liberar espacio de almacenamiento">🧹 Limpiar Memoria</button>
+                <button class="btn btn-backup" onclick="exportDatabaseBackup()" title="Descargar respaldo completo del año">💾 Export Backup</button>
+                <button class="btn btn-backup" onclick="document.getElementById('backupFileInput').click()" title="Restaurar datos guardados">📥 Import Backup</button>
+                <input type="file" id="backupFileInput" accept=".json" style="display:none;" onchange="importDatabaseBackup(event)">
             </div>
         </div>
 
@@ -695,6 +697,94 @@
 
 <script>
     const MANAGEMENT_PASSWORD = "management2026!";
+
+    /* --- MOTOR INDEXEDDB ILIMITADO --- */
+    const DB_NAME = "AttendanceSystemDB";
+    const DB_VERSION = 2;
+    const STORE_ATTENDANCE = "daily_attendance";
+    const STORE_EMPLOYEES = "employees_store";
+    let dbInstance = null;
+
+    // Prohíbe al navegador desalojar los datos
+    async function requestStoragePersistence() {
+        if (navigator.storage && navigator.storage.persist) {
+            const isPersisted = await navigator.storage.persisted();
+            if (!isPersisted) {
+                await navigator.storage.persist();
+            }
+        }
+    }
+    requestStoragePersistence();
+
+    function openDatabase() {
+        return new Promise((resolve, reject) => {
+            if (dbInstance) return resolve(dbInstance);
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_ATTENDANCE)) {
+                    db.createObjectStore(STORE_ATTENDANCE, { keyPath: "id" });
+                }
+                if (!db.objectStoreNames.contains(STORE_EMPLOYEES)) {
+                    db.createObjectStore(STORE_EMPLOYEES, { keyPath: "country" });
+                }
+            };
+            request.onsuccess = (e) => {
+                dbInstance = e.target.result;
+                resolve(dbInstance);
+            };
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async function dbPut(storeName, keyField, key, value) {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, "readwrite");
+            const store = tx.objectStore(storeName);
+            const item = {};
+            item[keyField] = key;
+            item.data = value;
+            store.put(item);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
+    async function dbGet(storeName, key) {
+        const db = await openDatabase();
+        return new Promise((resolve) => {
+            const tx = db.transaction(storeName, "readonly");
+            const store = tx.objectStore(storeName);
+            const req = store.get(key);
+            req.onsuccess = () => {
+                if (req.result && req.result.data) {
+                    resolve(req.result.data);
+                } else {
+                    // Migración retrocompatible limpia si aún estaba en localStorage
+                    try {
+                        const legacyKey = storeName === STORE_EMPLOYEES ? `CS_EMPLOYEES_LIST_${key}` : key;
+                        const legacy = localStorage.getItem(legacyKey);
+                        resolve(legacy ? JSON.parse(legacy) : null);
+                    } catch(e) {
+                        resolve(null);
+                    }
+                }
+            };
+            req.onerror = () => resolve(null);
+        });
+    }
+
+    async function dbGetAll(storeName) {
+        const db = await openDatabase();
+        return new Promise((resolve) => {
+            const tx = db.transaction(storeName, "readonly");
+            const store = tx.objectStore(storeName);
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+        });
+    }
 
     const defaultCountryData = {
         "Colombia": [
@@ -835,16 +925,16 @@
         ]
     };
 
-    function getCountryEmployees(country) {
-        const stored = localStorage.getItem(`CS_EMPLOYEES_LIST_${country}`);
-        if (stored) {
-            try { return JSON.parse(stored); } catch(e){}
+    async function getCountryEmployees(country) {
+        const stored = await dbGet(STORE_EMPLOYEES, country);
+        if (stored && Array.isArray(stored)) {
+            return stored;
         }
         return JSON.parse(JSON.stringify(defaultCountryData[country] || []));
     }
 
-    function saveCountryEmployees(country, list) {
-        localStorage.setItem(`CS_EMPLOYEES_LIST_${country}`, JSON.stringify(list));
+    async function saveCountryEmployees(country, list) {
+        await dbPut(STORE_EMPLOYEES, "country", country, list);
     }
 
     const statusOptions = [
@@ -1086,6 +1176,7 @@
         });
     });
 
+    // Carga inicial
     renderCurrentTable();
     dateInput.addEventListener('change', renderCurrentTable);
 
@@ -1133,7 +1224,7 @@
         } catch(e) {}
     }
 
-    function updateGlobalCounters() {
+    async function updateGlobalCounters() {
         const selectedDate = dateInput ? dateInput.value : '';
         const currentCountry = countrySelect ? countrySelect.value : '';
         let globalAttended = 0;
@@ -1141,17 +1232,10 @@
 
         if (!selectedDate) return;
 
-        Object.keys(passwordsByCountry).forEach(c => {
+        for (const c of Object.keys(passwordsByCountry)) {
             const storageKey = `attendance_${c}_${selectedDate}`;
-            let savedData = {};
-            try {
-                const item = localStorage.getItem(storageKey);
-                if (item) savedData = JSON.parse(item) || {};
-            } catch(e) {
-                savedData = {};
-            }
-
-            const employees = getCountryEmployees(c);
+            const savedData = await dbGet(STORE_ATTENDANCE, storageKey) || {};
+            const employees = await getCountryEmployees(c);
 
             employees.forEach((_, idx) => {
                 let statusVal = '';
@@ -1175,7 +1259,7 @@
                     globalNotPresent++;
                 }
             });
-        });
+        }
 
         const gAtt = document.getElementById('globalCountAttended');
         const gNot = document.getElementById('globalCountNotPresent');
@@ -1183,7 +1267,7 @@
         if (gNot) gNot.innerText = globalNotPresent;
     }
 
-    function renderCurrentTable() {
+    async function renderCurrentTable() {
         const country = countrySelect.value;
         const selectedDate = dateInput.value;
         
@@ -1198,15 +1282,9 @@
         tableBody.innerHTML = '';
 
         const storageKey = `attendance_${country}_${selectedDate}`;
-        let savedData = {};
-        try {
-            const item = localStorage.getItem(storageKey);
-            if (item) savedData = JSON.parse(item) || {};
-        } catch(e) {
-            savedData = {};
-        }
+        const savedData = await dbGet(STORE_ATTENDANCE, storageKey) || {};
 
-        const employees = getCountryEmployees(country);
+        const employees = await getCountryEmployees(country);
         const countryClass = countryClassMap[country] || '';
 
         employees.forEach((emp, index) => {
@@ -1288,16 +1366,16 @@
         return false;
     }
 
-    function handleDrop(e, targetIndex) {
+    async function handleDrop(e, targetIndex) {
         e.stopPropagation();
         if (draggedIndex !== null && draggedIndex !== targetIndex) {
             const country = countrySelect.value;
-            const employees = getCountryEmployees(country);
+            const employees = await getCountryEmployees(country);
 
             const draggedItem = employees.splice(draggedIndex, 1)[0];
             employees.splice(targetIndex, 0, draggedItem);
 
-            saveCountryEmployees(country, employees);
+            await saveCountryEmployees(country, employees);
             renderCurrentTable();
         }
         return false;
@@ -1330,9 +1408,9 @@
         });
     }
 
-    function saveRowEdit(index) {
+    async function saveRowEdit(index) {
         const country = countrySelect.value;
-        const employees = getCountryEmployees(country);
+        const employees = await getCountryEmployees(country);
 
         employees[index] = {
             name: document.getElementById(`input-${index}-name`).value,
@@ -1342,21 +1420,21 @@
             checkOut: document.getElementById(`input-${index}-out`).value
         };
 
-        saveCountryEmployees(country, employees);
+        await saveCountryEmployees(country, employees);
         renderCurrentTable();
         showToast("¡Información del agente actualizada!");
     }
 
     function deleteAgent(index) {
-        checkAdminPassword(function(isAuthorized) {
+        checkAdminPassword(async function(isAuthorized) {
             if (!isAuthorized) return;
 
             const country = countrySelect.value;
-            const employees = getCountryEmployees(country);
+            const employees = await getCountryEmployees(country);
 
             if (confirm(`¿Está seguro de eliminar al agente "${employees[index].name}"?`)) {
                 employees.splice(index, 1);
-                saveCountryEmployees(country, employees);
+                await saveCountryEmployees(country, employees);
                 renderCurrentTable();
                 showToast("Agente eliminado exitosamente.");
             }
@@ -1364,11 +1442,11 @@
     }
 
     function addAgent() {
-        checkAdminPassword(function(isAuthorized) {
+        checkAdminPassword(async function(isAuthorized) {
             if (!isAuthorized) return;
 
             const country = countrySelect.value;
-            const employees = getCountryEmployees(country);
+            const employees = await getCountryEmployees(country);
 
             const newAgent = {
                 name: "Nuevo Agente",
@@ -1379,7 +1457,7 @@
             };
 
             employees.push(newAgent);
-            saveCountryEmployees(country, employees);
+            await saveCountryEmployees(country, employees);
             renderCurrentTable();
 
             const newIndex = employees.length - 1;
@@ -1388,67 +1466,8 @@
         });
     }
 
-    /* --- LIMPIEZA AUTOMÁTICA Y MANUAL DE LOCALSTORAGE --- */
-    function autoPruneOldData() {
-        // Elimina registros de asistencia que tengan más de 90 días
-        const now = new Date();
-        const keysToRemove = [];
-
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('attendance_')) {
-                const parts = key.split('_');
-                const datePart = parts[parts.length - 1]; // YYYY-MM-DD
-                const recordDate = new Date(datePart);
-                if (!isNaN(recordDate)) {
-                    const diffDays = (now - recordDate) / (1000 * 60 * 60 * 24);
-                    if (diffDays > 90) {
-                        keysToRemove.push(key);
-                    }
-                }
-            }
-        }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
-        return keysToRemove.length;
-    }
-
-    function cleanOldAttendancePrompt() {
-        checkAdminPassword(function(isAuthorized) {
-            if (!isAuthorized) return;
-
-            const confirmClean = confirm("¿Deseas depurar registros antiguos de más de 60 días para liberar memoria de almacenamiento?");
-            if (!confirmClean) return;
-
-            const now = new Date();
-            let count = 0;
-            const keysToRemove = [];
-
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('attendance_')) {
-                    const parts = key.split('_');
-                    const datePart = parts[parts.length - 1];
-                    const recordDate = new Date(datePart);
-                    if (!isNaN(recordDate)) {
-                        const diffDays = (now - recordDate) / (1000 * 60 * 60 * 24);
-                        if (diffDays > 60) {
-                            keysToRemove.push(key);
-                        }
-                    }
-                }
-            }
-            keysToRemove.forEach(k => {
-                localStorage.removeItem(k);
-                count++;
-            });
-
-            showToast(`Se liberó espacio eliminando ${count} registros antiguos.`);
-            updateCounters();
-        });
-    }
-
-    /* --- SAVE DATA OPTIMIZADO CONTRA CUOTA EXCEDIDA --- */
-    function saveData() {
+    /* --- GUARDADO TOTAL EN INDEXEDDB (CAPACIDAD ILIMITADA) --- */
+    async function saveData() {
         const country = countrySelect ? countrySelect.value : '';
         const selectedDate = dateInput ? dateInput.value : '';
 
@@ -1457,9 +1476,8 @@
             return;
         }
 
-        const employees = getCountryEmployees(country);
+        const employees = await getCountryEmployees(country);
         const dataToSave = {};
-        let hasData = false;
 
         employees.forEach((_, index) => {
             const statusElem = document.getElementById(`status_${index}`);
@@ -1468,48 +1486,85 @@
             const status = (statusElem && statusElem.value) ? statusElem.value.trim() : '';
             const comments = (commentsElem && commentsElem.value) ? commentsElem.value.trim() : '';
 
-            // Solo guardamos entradas que tengan estatus o comentarios para ahorrar hasta 85% de espacio
-            if (status !== "" || comments !== "") {
-                dataToSave[index] = { status: status, comments: comments };
-                hasData = true;
-            }
+            dataToSave[index] = { status: status, comments: comments };
         });
 
         const storageKey = `attendance_${country}_${selectedDate}`;
 
         try {
-            if (hasData) {
-                localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-            } else {
-                localStorage.removeItem(storageKey);
-            }
-
+            await dbPut(STORE_ATTENDANCE, "id", storageKey, dataToSave);
             showToast(`¡Información de ${country} guardada para el ${selectedDate}!`);
-
-            try {
-                updateGlobalCounters();
-            } catch (e) {}
-
+            updateCounters();
         } catch (error) {
-            // Manejo específico si se satura el almacenamiento
-            if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                const pruned = autoPruneOldData();
-                if (pruned > 0) {
-                    try {
-                        localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-                        showToast(`Espacio liberado (${pruned} registros antiguos borrados). ¡Guardado!`);
-                        return;
-                    } catch (e2) {}
-                }
-
-                alert("El almacenamiento de tu navegador está lleno (Quota Exceeded). Por favor usa el botón '🧹 Limpiar Memoria' en la esquina superior para purgar registros antiguos, o exporta tus asistencias a Excel.");
-            } else {
-                alert("Error al guardar: " + error.message);
-            }
+            console.error("Error al guardar en IndexedDB:", error);
+            alert("Error al guardar: " + error.message);
         }
     }
 
-    function exportToExcel() {
+    /* --- SISTEMA DE RESPALDO Y RESTAURACIÓN --- */
+    async function exportDatabaseBackup() {
+        const allRecords = await dbGetAll(STORE_ATTENDANCE);
+        const allEmployees = await dbGetAll(STORE_EMPLOYEES);
+
+        const exportObj = {
+            version: 2,
+            exportDate: new Date().toISOString(),
+            records: allRecords,
+            employees: allEmployees
+        };
+
+        const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Attendance_Full_Backup_${today}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("¡Respaldo anual descargado con éxito!");
+    }
+
+    function importDatabaseBackup(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        checkAdminPassword(async function(isAuthorized) {
+            if (!isAuthorized) {
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.records && Array.isArray(parsed.records)) {
+                        for (const r of parsed.records) {
+                            if (r.id && r.data) {
+                                await dbPut(STORE_ATTENDANCE, "id", r.id, r.data);
+                            }
+                        }
+                    }
+                    if (parsed.employees && Array.isArray(parsed.employees)) {
+                        for (const empEntry of parsed.employees) {
+                            if (empEntry.country && empEntry.data) {
+                                await dbPut(STORE_EMPLOYEES, "country", empEntry.country, empEntry.data);
+                            }
+                        }
+                    }
+                    showToast("¡Datos restaurados con éxito!");
+                    renderCurrentTable();
+                } catch(err) {
+                    alert("El archivo de respaldo no es válido: " + err.message);
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    async function exportToExcel() {
         const country = countrySelect.value;
         const selectedDate = dateInput.value;
 
@@ -1518,7 +1573,7 @@
             return;
         }
 
-        const employees = getCountryEmployees(country);
+        const employees = await getCountryEmployees(country);
 
         const headers = ["COUNTRY", "NAME", "TEAM", "SUPERVISOR", "CHECK IN (US TIME)", "CHECK OUT (US TIME)", "STATUS FOR THE DAY", "COMMENTS", "DATE"];
         const rows = [headers];
@@ -1645,12 +1700,12 @@
         });
     }
 
-    function loadBranchStats(branch) {
+    async function loadBranchStats(branch) {
         const tbody = document.getElementById('statsTableBody');
         tbody.innerHTML = '';
 
         const selectedMonth = document.getElementById('monthSelect').value;
-        const employees = getCountryEmployees(branch);
+        const employees = await getCountryEmployees(branch);
         
         const offenderStatuses = [
             "ABSENT", "NO CALL/NO SHOW", "LATE", "LATE JUSTIFIED (BACK UP DOC.)", 
@@ -1658,39 +1713,37 @@
         ];
 
         const offenderMap = {};
+        const allRecords = await dbGetAll(STORE_ATTENDANCE);
 
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
+        allRecords.forEach(item => {
+            const key = item.id;
             if (key && key.startsWith(`attendance_${branch}_`)) {
                 const dateStr = key.replace(`attendance_${branch}_`, '');
                 const parts = dateStr.split('-');
                 
                 if (parts.length === 3 && parts[1] === selectedMonth) {
-                    try {
-                        const raw = localStorage.getItem(key);
-                        const data = raw ? JSON.parse(raw) : {};
-                        Object.keys(data).forEach(index => {
-                            const record = data[index];
-                            if (!record) return;
-                            const status = record.status ? record.status.toUpperCase() : '';
-                            
-                            if (offenderStatuses.includes(status)) {
-                                const emp = employees[index];
-                                const agentName = emp ? emp.name : `Agente #${parseInt(index)+1}`;
+                    const data = item.data || {};
+                    Object.keys(data).forEach(index => {
+                        const record = data[index];
+                        if (!record) return;
+                        const status = record.status ? record.status.toUpperCase() : '';
+                        
+                        if (offenderStatuses.includes(status)) {
+                            const emp = employees[index];
+                            const agentName = emp ? emp.name : `Agente #${parseInt(index)+1}`;
 
-                                if (!offenderMap[agentName]) offenderMap[agentName] = {};
-                                if (!offenderMap[agentName][status]) {
-                                    offenderMap[agentName][status] = { count: 0, dates: [] };
-                                }
-
-                                offenderMap[agentName][status].count += 1;
-                                offenderMap[agentName][status].dates.push(dateStr);
+                            if (!offenderMap[agentName]) offenderMap[agentName] = {};
+                            if (!offenderMap[agentName][status]) {
+                                offenderMap[agentName][status] = { count: 0, dates: [] };
                             }
-                        });
-                    } catch(e){}
+
+                            offenderMap[agentName][status].count += 1;
+                            offenderMap[agentName][status].dates.push(dateStr);
+                        }
+                    });
                 }
             }
-        }
+        });
 
         let offendersList = [];
         Object.keys(offenderMap).forEach(agentName => {
