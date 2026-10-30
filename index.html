@@ -32,7 +32,6 @@
             --overlay-bg: rgba(0, 0, 0, 0.75);
         }
 
-        /* --- MODO CLARO (LIGHT MODE) --- */
         body.light-mode {
             --bg-color: #f4f6f9;
             --card-bg: #ffffff;
@@ -168,6 +167,8 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
+        .btn-cleanup { background-color: #b02a37; }
+        .btn-cleanup:hover { background-color: #8c1c27; }
         .btn-back { background-color: #6c757d; }
         .btn-back:hover { background-color: #5a6268; }
         .btn:active { transform: scale(0.98); }
@@ -566,6 +567,7 @@
                 <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
                 <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
                 <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
+                <button class="btn btn-cleanup" onclick="cleanOldAttendancePrompt()" title="Liberar espacio de almacenamiento">🧹 Limpiar Memoria</button>
             </div>
         </div>
 
@@ -710,7 +712,7 @@
             {"name": "Daniel E. Hernandez Soto", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
             {"name": "Brian Lopez", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
             {"name": "Karen Medinilla", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
-            {"name": "Marvin Sandoval", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkIn": "07:00:00", "checkOut": "16:00:00"},
+            {"name": "Marvin Sandoval", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "07:00:00", "checkOut": "16:00:00"},
             {"name": "Cristopher Orellana", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "08:00:00", "checkOut": "17:00:00"},
             {"name": "Diana Solis", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "08:00:00", "checkOut": "17:00:00"},
             {"name": "Armando Valenzuela", "team": "Management", "supervisor": "Jorge Garrido", "checkIn": "08:00:00", "checkOut": "17:00:00"},
@@ -873,35 +875,21 @@
     };
 
     const attendedStatuses = [
-        "ATTENDED",
-        "LATE",
-        "LATE JUSTIFIED (BACK UP DOC.)",
-        "EARLY OUT"
+        "ATTENDED", "LATE", "LATE JUSTIFIED (BACK UP DOC.)", "EARLY OUT"
     ];
 
     const expectedAbsences = [
-        "DAY OFF",
-        "SCHEDULE MEDICAL APPOINTMENT",
-        "VACATION",
-        "FLOATING HOLIDAY",
-        "DISCIPLINARY SUSPENSION",
-        "US HOLIDAY",
-        "COUNTRY HOLIDAY",
-        "BEREAVEMENT LEAVE",
-        "MARRIAGE/MA/PATERNITY LEAVING",
-        "LEGAL PROCESS"
+        "DAY OFF", "SCHEDULE MEDICAL APPOINTMENT", "VACATION", "FLOATING HOLIDAY",
+        "DISCIPLINARY SUSPENSION", "US HOLIDAY", "COUNTRY HOLIDAY", "BEREAVEMENT LEAVE",
+        "MARRIAGE/MA/PATERNITY LEAVING", "LEGAL PROCESS"
     ];
 
     const unexpectedAbsences = [
-        "ABSENT",
-        "NO CALL/NO SHOW",
-        "SICK DAY",
-        "EMERGENCY DAY OFF"
+        "ABSENT", "NO CALL/NO SHOW", "SICK DAY", "EMERGENCY DAY OFF"
     ];
 
     const notPresentStatuses = [
-        ...expectedAbsences,
-        ...unexpectedAbsences
+        ...expectedAbsences, ...unexpectedAbsences
     ];
 
     function cleanString(str) {
@@ -1142,9 +1130,7 @@
 
         try {
             updateGlobalCounters();
-        } catch(e) {
-            console.warn("Aviso al actualizar contadores globales:", e);
-        }
+        } catch(e) {}
     }
 
     function updateGlobalCounters() {
@@ -1402,7 +1388,66 @@
         });
     }
 
-    /* --- SAVE DATA ROBUSTO CON PROTECCIÓN TOTAL CONTRA FALLOS --- */
+    /* --- LIMPIEZA AUTOMÁTICA Y MANUAL DE LOCALSTORAGE --- */
+    function autoPruneOldData() {
+        // Elimina registros de asistencia que tengan más de 90 días
+        const now = new Date();
+        const keysToRemove = [];
+
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('attendance_')) {
+                const parts = key.split('_');
+                const datePart = parts[parts.length - 1]; // YYYY-MM-DD
+                const recordDate = new Date(datePart);
+                if (!isNaN(recordDate)) {
+                    const diffDays = (now - recordDate) / (1000 * 60 * 60 * 24);
+                    if (diffDays > 90) {
+                        keysToRemove.push(key);
+                    }
+                }
+            }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        return keysToRemove.length;
+    }
+
+    function cleanOldAttendancePrompt() {
+        checkAdminPassword(function(isAuthorized) {
+            if (!isAuthorized) return;
+
+            const confirmClean = confirm("¿Deseas depurar registros antiguos de más de 60 días para liberar memoria de almacenamiento?");
+            if (!confirmClean) return;
+
+            const now = new Date();
+            let count = 0;
+            const keysToRemove = [];
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('attendance_')) {
+                    const parts = key.split('_');
+                    const datePart = parts[parts.length - 1];
+                    const recordDate = new Date(datePart);
+                    if (!isNaN(recordDate)) {
+                        const diffDays = (now - recordDate) / (1000 * 60 * 60 * 24);
+                        if (diffDays > 60) {
+                            keysToRemove.push(key);
+                        }
+                    }
+                }
+            }
+            keysToRemove.forEach(k => {
+                localStorage.removeItem(k);
+                count++;
+            });
+
+            showToast(`Se liberó espacio eliminando ${count} registros antiguos.`);
+            updateCounters();
+        });
+    }
+
+    /* --- SAVE DATA OPTIMIZADO CONTRA CUOTA EXCEDIDA --- */
     function saveData() {
         const country = countrySelect ? countrySelect.value : '';
         const selectedDate = dateInput ? dateInput.value : '';
@@ -1412,33 +1457,55 @@
             return;
         }
 
-        try {
-            const employees = getCountryEmployees(country);
-            const dataToSave = {};
+        const employees = getCountryEmployees(country);
+        const dataToSave = {};
+        let hasData = false;
 
-            employees.forEach((_, index) => {
-                const statusElem = document.getElementById(`status_${index}`);
-                const commentsElem = document.getElementById(`comments_${index}`);
+        employees.forEach((_, index) => {
+            const statusElem = document.getElementById(`status_${index}`);
+            const commentsElem = document.getElementById(`comments_${index}`);
 
-                const status = (statusElem && statusElem.value) ? statusElem.value : '';
-                const comments = (commentsElem && commentsElem.value) ? commentsElem.value : '';
+            const status = (statusElem && statusElem.value) ? statusElem.value.trim() : '';
+            const comments = (commentsElem && commentsElem.value) ? commentsElem.value.trim() : '';
 
+            // Solo guardamos entradas que tengan estatus o comentarios para ahorrar hasta 85% de espacio
+            if (status !== "" || comments !== "") {
                 dataToSave[index] = { status: status, comments: comments };
-            });
+                hasData = true;
+            }
+        });
 
-            const storageKey = `attendance_${country}_${selectedDate}`;
-            localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+        const storageKey = `attendance_${country}_${selectedDate}`;
+
+        try {
+            if (hasData) {
+                localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+            } else {
+                localStorage.removeItem(storageKey);
+            }
 
             showToast(`¡Información de ${country} guardada para el ${selectedDate}!`);
 
             try {
                 updateGlobalCounters();
-            } catch (counterError) {
-                console.warn("Guardado exitoso, pero hubo un error menor calculando contadores globales:", counterError);
-            }
+            } catch (e) {}
+
         } catch (error) {
-            console.error("Error al persistir en localStorage:", error);
-            alert("Error al guardar: " + (error.message || "Verifique los permisos del navegador o espacio disponible."));
+            // Manejo específico si se satura el almacenamiento
+            if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                const pruned = autoPruneOldData();
+                if (pruned > 0) {
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+                        showToast(`Espacio liberado (${pruned} registros antiguos borrados). ¡Guardado!`);
+                        return;
+                    } catch (e2) {}
+                }
+
+                alert("El almacenamiento de tu navegador está lleno (Quota Exceeded). Por favor usa el botón '🧹 Limpiar Memoria' en la esquina superior para purgar registros antiguos, o exporta tus asistencias a Excel.");
+            } else {
+                alert("Error al guardar: " + error.message);
+            }
         }
     }
 
