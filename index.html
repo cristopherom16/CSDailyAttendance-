@@ -167,8 +167,6 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
-        .btn-reset { background-color: #dc3545; }
-        .btn-reset:hover { background-color: #bb2d3b; }
         .btn-back { background-color: #6c757d; }
         .btn-back:hover { background-color: #5a6268; }
         .btn:active { transform: scale(0.98); }
@@ -580,7 +578,6 @@
                 <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
                 <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
                 <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
-                <button class="btn btn-reset" onclick="resetCurrentCountryRoster()" title="Restore default list if corrupted">🔄 Restore Default List</button>
             </div>
         </div>
 
@@ -950,17 +947,6 @@
 
     async function saveCountryEmployees(country, list) {
         await dbPut(STORE_EMPLOYEES, "country", country, list);
-    }
-
-    async function resetCurrentCountryRoster() {
-        checkAdminPassword(async function(isAuthorized) {
-            if (!isAuthorized) return;
-            const country = countrySelect.value;
-            const defaults = JSON.parse(JSON.stringify(defaultCountryData[country] || []));
-            await saveCountryEmployees(country, defaults);
-            await renderCurrentTable();
-            showToast(`${country} agent list restored to default!`);
-        });
     }
 
     const statusOptions = [
