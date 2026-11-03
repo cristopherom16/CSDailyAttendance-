@@ -330,9 +330,18 @@
             text-align: center !important;
         }
 
-        tr.draggable-row { cursor: move; }
-        tr.dragging { opacity: 0.5; background-color: #1e2d5a !important; }
-        .drag-handle { cursor: grab; margin-right: 8px; color: #000000; }
+        tr.draggable-row { transition: background-color 0.2s; }
+        tr.dragging { opacity: 0.45; background-color: #1e2d5a !important; }
+        tr.drag-over-top { border-top: 3px solid #ffc107 !important; }
+        tr.drag-over-bottom { border-bottom: 3px solid #ffc107 !important; }
+
+        .drag-handle { 
+            cursor: grab; 
+            margin-right: 8px; 
+            color: #ffc107; 
+            padding: 4px;
+            user-select: none;
+        }
         .drag-handle:active { cursor: grabbing; }
 
         .action-btn-group {
@@ -658,7 +667,6 @@
                 <div class="selector-group">
                     <label for="yearSelect">YEAR:</label>
                     <select id="yearSelect" class="nav-select" onchange="loadBranchStats(activeStatsBranch)">
-                        <!-- Dinámico según año actual -->
                     </select>
                 </div>
 
@@ -1301,11 +1309,13 @@
         employees.forEach((emp, index) => {
             const row = document.createElement('tr');
             row.id = `row-${index}`;
+            row.dataset.index = index;
             row.className = 'draggable-row';
-            row.draggable = true;
+            row.draggable = false;
 
             row.addEventListener('dragstart', (e) => handleDragStart(e, index));
-            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('dragover', (e) => handleDragOver(e, row));
+            row.addEventListener('dragleave', () => handleDragLeave(row));
             row.addEventListener('drop', (e) => handleDrop(e, index));
             row.addEventListener('dragend', handleDragEnd);
 
@@ -1321,7 +1331,7 @@
 
             row.innerHTML = `
                 <td class="${countryClass}">
-                    <i class="fa-solid fa-bars drag-handle" title="Arrastrar para reordenar"></i>
+                    <i class="fa-solid fa-bars drag-handle" title="Arrastrar para reordenar" onmousedown="enableDragRow(${index})" onmouseup="disableDragRow(${index})"></i>
                     <span id="label-${index}-name"><strong>${emp.name}</strong></span>
                     <input type="text" id="input-${index}-name" class="edit-input" value="${emp.name}" style="display:none;">
                 </td>
@@ -1365,35 +1375,115 @@
         updateCounters();
     }
 
+    function enableDragRow(index) {
+        const row = document.getElementById(`row-${index}`);
+        if (row) row.draggable = true;
+    }
+
+    function disableDragRow(index) {
+        const row = document.getElementById(`row-${index}`);
+        if (row) row.draggable = false;
+    }
+
     function handleDragStart(e, index) {
         draggedIndex = index;
-        e.target.classList.add('dragging');
+        const row = document.getElementById(`row-${index}`);
+        if (row) row.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index);
     }
 
-    function handleDragOver(e) {
+    function handleDragOver(e, row) {
         if (e.preventDefault) e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        return false;
-    }
 
-    async function handleDrop(e, targetIndex) {
-        e.stopPropagation();
-        if (draggedIndex !== null && draggedIndex !== targetIndex) {
-            const country = countrySelect.value;
-            const employees = await getCountryEmployees(country);
-
-            const draggedItem = employees.splice(draggedIndex, 1)[0];
-            employees.splice(targetIndex, 0, draggedItem);
-
-            await saveCountryEmployees(country, employees);
-            renderCurrentTable();
+        const rect = row.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+            row.classList.add('drag-over-top');
+            row.classList.remove('drag-over-bottom');
+        } else {
+            row.classList.add('drag-over-bottom');
+            row.classList.remove('drag-over-top');
         }
         return false;
     }
 
+    function handleDragLeave(row) {
+        row.classList.remove('drag-over-top', 'drag-over-bottom');
+    }
+
+    async function handleDrop(e, targetIndex) {
+        e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+
+        const row = e.currentTarget;
+        let insertionIndex = targetIndex;
+
+        if (row) {
+            const rect = row.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (e.clientY >= midY && targetIndex < draggedIndex) {
+                insertionIndex = targetIndex + 1;
+            } else if (e.clientY < midY && targetIndex > draggedIndex) {
+                insertionIndex = targetIndex - 1;
+            }
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+
+        if (draggedIndex !== null && draggedIndex !== insertionIndex) {
+            const country = countrySelect.value;
+            const selectedDate = dateInput.value;
+            const employees = await getCountryEmployees(country);
+
+            // 1. Reconstruir estado actual en pantalla para no perder cambios no guardados
+            const currentAttendanceArray = employees.map((_, i) => {
+                const s = document.getElementById(`status_${i}`);
+                const c = document.getElementById(`comments_${i}`);
+                return {
+                    status: s ? s.value : '',
+                    comments: c ? c.value : ''
+                };
+            });
+
+            // 2. Mover empleado en la lista base
+            const movedEmployee = employees.splice(draggedIndex, 1)[0];
+            employees.splice(insertionIndex, 0, movedEmployee);
+
+            // 3. Mover datos de asistencia exactamente a la par del empleado
+            const movedAttendance = currentAttendanceArray.splice(draggedIndex, 1)[0];
+            currentAttendanceArray.splice(insertionIndex, 0, movedAttendance);
+
+            // 4. Guardar empleados reordenados
+            await saveCountryEmployees(country, employees);
+
+            // 5. Actualizar y persistir el registro del día con los nuevos índices
+            const updatedDayData = {};
+            currentAttendanceArray.forEach((rec, idx) => {
+                updatedDayData[idx] = rec;
+            });
+
+            const storageKey = `attendance_${country}_${selectedDate}`;
+            await dbPut(STORE_ATTENDANCE, "id", storageKey, updatedDayData);
+
+            // 6. Refrescar interfaz
+            await renderCurrentTable();
+            showToast("¡Agente reubicado correctamente!");
+        }
+
+        cleanAllDragOverClasses();
+        return false;
+    }
+
+    function cleanAllDragOverClasses() {
+        document.querySelectorAll('.draggable-row').forEach(r => {
+            r.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging');
+            r.draggable = false;
+        });
+    }
+
     function handleDragEnd(e) {
-        if (e.target) e.target.classList.remove('dragging');
+        cleanAllDragOverClasses();
         draggedIndex = null;
     }
 
@@ -1441,11 +1531,30 @@
             if (!isAuthorized) return;
 
             const country = countrySelect.value;
+            const selectedDate = dateInput.value;
             const employees = await getCountryEmployees(country);
 
             if (confirm(`¿Está seguro de eliminar al agente "${employees[index].name}"?`)) {
+                // Eliminar empleado
                 employees.splice(index, 1);
                 await saveCountryEmployees(country, employees);
+
+                // Reajustar registros de asistencia del día en IndexedDB
+                const storageKey = `attendance_${country}_${selectedDate}`;
+                const savedData = await dbGet(STORE_ATTENDANCE, storageKey) || {};
+                const newDayData = {};
+
+                let newIdx = 0;
+                Object.keys(savedData).forEach((key) => {
+                    const numKey = parseInt(key, 10);
+                    if (numKey !== index) {
+                        newDayData[newIdx] = savedData[key];
+                        newIdx++;
+                    }
+                });
+
+                await dbPut(STORE_ATTENDANCE, "id", storageKey, newDayData);
+
                 renderCurrentTable();
                 showToast("Agente eliminado exitosamente.");
             }
@@ -1691,7 +1800,6 @@
                 const dateStr = key.replace(`attendance_${branch}_`, '').trim();
                 const parts = dateStr.split('-');
                 
-                // Valida año (parts[0]) y mes (parts[1])
                 if (parts.length === 3) {
                     const recYear = parts[0];
                     const recMonth = parts[1];
@@ -1734,7 +1842,6 @@
             });
         });
 
-        // Ordenar de mayor a menor número de incidencias
         offendersList.sort((a, b) => b.count - a.count);
 
         const monthName = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
