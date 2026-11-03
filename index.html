@@ -167,6 +167,8 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
+        .btn-reset { background-color: #dc3545; }
+        .btn-reset:hover { background-color: #bb2d3b; }
         .btn-back { background-color: #6c757d; }
         .btn-back:hover { background-color: #5a6268; }
         .btn:active { transform: scale(0.98); }
@@ -331,19 +333,20 @@
         }
 
         tr.draggable-row { transition: background-color 0.2s; }
-        tr.dragging { opacity: 0.45; background-color: #1e2d5a !important; }
+        tr.dragging { opacity: 0.35; background-color: #1e2d5a !important; }
         tr.drag-over-swap { 
-            outline: 2px dashed #ffc107 !important; 
-            outline-offset: -2px; 
-            background-color: rgba(255, 193, 7, 0.2) !important; 
+            outline: 3px dashed #ffc107 !important; 
+            outline-offset: -3px; 
+            background-color: rgba(255, 193, 7, 0.25) !important; 
         }
 
         .drag-handle { 
             cursor: grab; 
             margin-right: 8px; 
             color: #ffc107; 
-            padding: 4px;
+            padding: 6px;
             user-select: none;
+            display: inline-block;
         }
         .drag-handle:active { cursor: grabbing; }
 
@@ -577,6 +580,7 @@
                 <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
                 <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
                 <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
+                <button class="btn btn-reset" onclick="resetCurrentCountryRoster()" title="Restore default list if corrupted">🔄 Restore Default List</button>
             </div>
         </div>
 
@@ -938,7 +942,7 @@
 
     async function getCountryEmployees(country) {
         const stored = await dbGet(STORE_EMPLOYEES, country);
-        if (stored && Array.isArray(stored)) {
+        if (stored && Array.isArray(stored) && stored.length > 0) {
             return stored;
         }
         return JSON.parse(JSON.stringify(defaultCountryData[country] || []));
@@ -946,6 +950,17 @@
 
     async function saveCountryEmployees(country, list) {
         await dbPut(STORE_EMPLOYEES, "country", country, list);
+    }
+
+    async function resetCurrentCountryRoster() {
+        checkAdminPassword(async function(isAuthorized) {
+            if (!isAuthorized) return;
+            const country = countrySelect.value;
+            const defaults = JSON.parse(JSON.stringify(defaultCountryData[country] || []));
+            await saveCountryEmployees(country, defaults);
+            await renderCurrentTable();
+            showToast(`${country} agent list restored to default!`);
+        });
     }
 
     const statusOptions = [
@@ -1314,8 +1329,8 @@
             row.id = `row-${index}`;
             row.dataset.index = index;
             row.className = 'draggable-row';
-            row.draggable = false;
 
+            // Drag and drop events setup
             row.addEventListener('dragstart', (e) => handleDragStart(e, index));
             row.addEventListener('dragover', (e) => handleDragOver(e, row));
             row.addEventListener('dragleave', () => handleDragLeave(row));
@@ -1334,7 +1349,7 @@
 
             row.innerHTML = `
                 <td class="${countryClass}">
-                    <i class="fa-solid fa-bars drag-handle" title="Drag to swap agent" onmousedown="enableDragRow(${index})" onmouseup="disableDragRow(${index})"></i>
+                    <i class="fa-solid fa-bars drag-handle" title="Drag to swap agent" onmousedown="enableDragRow(${index})"></i>
                     <span id="label-${index}-name"><strong>${emp.name}</strong></span>
                     <input type="text" id="input-${index}-name" class="edit-input" value="${emp.name}" style="display:none;">
                 </td>
@@ -1383,17 +1398,12 @@
         if (row) row.draggable = true;
     }
 
-    function disableDragRow(index) {
-        const row = document.getElementById(`row-${index}`);
-        if (row) row.draggable = false;
-    }
-
     function handleDragStart(e, index) {
         draggedIndex = index;
         const row = document.getElementById(`row-${index}`);
         if (row) row.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', index);
+        e.dataTransfer.setData('text/plain', index.toString());
     }
 
     function handleDragOver(e, row) {
@@ -1414,7 +1424,10 @@
 
         cleanAllDragOverClasses();
 
-        if (draggedIndex !== null && targetIndex !== null && draggedIndex !== targetIndex) {
+        const fromIdx = draggedIndex !== null ? draggedIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
+        const toIdx = targetIndex;
+
+        if (!isNaN(fromIdx) && !isNaN(toIdx) && fromIdx !== toIdx) {
             const country = countrySelect.value;
             const selectedDate = dateInput.value;
             const employees = await getCountryEmployees(country);
@@ -1430,16 +1443,16 @@
             });
 
             // 2. Direct 1-to-1 swap for employees
-            const tempEmp = employees[draggedIndex];
-            employees[draggedIndex] = employees[targetIndex];
-            employees[targetIndex] = tempEmp;
+            const tempEmp = employees[fromIdx];
+            employees[fromIdx] = employees[toIdx];
+            employees[toIdx] = tempEmp;
 
-            // 3. Direct 1-to-1 swap for attendance records
-            const tempAtt = currentAttendanceArray[draggedIndex];
-            currentAttendanceArray[draggedIndex] = currentAttendanceArray[targetIndex];
-            currentAttendanceArray[targetIndex] = tempAtt;
+            // 3. Direct 1-to-1 swap for daily attendance records
+            const tempAtt = currentAttendanceArray[fromIdx];
+            currentAttendanceArray[fromIdx] = currentAttendanceArray[toIdx];
+            currentAttendanceArray[toIdx] = tempAtt;
 
-            // 4. Save swapped employee catalog
+            // 4. Save swapped employee catalog correctly
             await saveCountryEmployees(country, employees);
 
             // 5. Save swapped daily records
