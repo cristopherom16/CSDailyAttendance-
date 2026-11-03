@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Attendance System - Multi-Country</title>
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Librería SheetJS con soporte para Estilos CSS en Excel -->
+    <!-- SheetJS with CSS Styles Support -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
         :root {
@@ -332,8 +332,11 @@
 
         tr.draggable-row { transition: background-color 0.2s; }
         tr.dragging { opacity: 0.45; background-color: #1e2d5a !important; }
-        tr.drag-over-top { border-top: 3px solid #ffc107 !important; }
-        tr.drag-over-bottom { border-bottom: 3px solid #ffc107 !important; }
+        tr.drag-over-swap { 
+            outline: 2px dashed #ffc107 !important; 
+            outline-offset: -2px; 
+            background-color: rgba(255, 193, 7, 0.2) !important; 
+        }
 
         .drag-handle { 
             cursor: grab; 
@@ -541,7 +544,7 @@
 </head>
 <body>
 
-<button id="themeToggleBtn" class="btn-theme-floating" onclick="toggleTheme()" title="Cambiar Tema">
+<button id="themeToggleBtn" class="btn-theme-floating" onclick="toggleTheme()" title="Switch Theme">
     <i class="fa-solid fa-sun" id="themeIcon"></i>
 </button>
 
@@ -692,7 +695,7 @@
     </div>
 </div>
 
-<div id="toast" class="toast">Guardado exitosamente</div>
+<div id="toast" class="toast">Saved successfully!</div>
 
 <div id="passwordModal" class="modal-overlay">
     <div class="modal-card">
@@ -708,7 +711,7 @@
 <script>
     const MANAGEMENT_PASSWORD = "management2026!";
 
-    /* --- MOTOR INDEXEDDB ILIMITADO --- */
+    /* --- UNLIMITED INDEXEDDB ENGINE --- */
     const DB_NAME = "AttendanceSystemDB";
     const DB_VERSION = 2;
     const STORE_ATTENDANCE = "daily_attendance";
@@ -1115,7 +1118,7 @@
     const today = todayDate.toISOString().split('T')[0];
     dateInput.value = today;
 
-    // Poblar Selector de Años en Estadísticas
+    // Populate Year Selector in Statistics
     const currentYear = todayDate.getFullYear();
     const yearSelect = document.getElementById('yearSelect');
     for (let y = currentYear - 2; y <= currentYear + 2; y++) {
@@ -1331,7 +1334,7 @@
 
             row.innerHTML = `
                 <td class="${countryClass}">
-                    <i class="fa-solid fa-bars drag-handle" title="Arrastrar para reordenar" onmousedown="enableDragRow(${index})" onmouseup="disableDragRow(${index})"></i>
+                    <i class="fa-solid fa-bars drag-handle" title="Drag to swap agent" onmousedown="enableDragRow(${index})" onmouseup="disableDragRow(${index})"></i>
                     <span id="label-${index}-name"><strong>${emp.name}</strong></span>
                     <input type="text" id="input-${index}-name" class="edit-input" value="${emp.name}" style="display:none;">
                 </td>
@@ -1357,12 +1360,12 @@
                     </select>
                 </td>
                 <td>
-                    <input type="text" id="comments_${index}" value="${savedComments}" placeholder="Escribe un comentario...">
+                    <input type="text" id="comments_${index}" value="${savedComments}" placeholder="Enter a comment...">
                 </td>
                 <td>
                     <div class="action-btn-group" id="btn-group-${index}">
-                        <button class="action-btn btn-edit-row" onclick="enableRowEdit(${index})" title="Editar Agente"><i class="fa-solid fa-pen"></i></button>
-                        <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Eliminar Agente"><i class="fa-solid fa-trash"></i></button>
+                        <button class="action-btn btn-edit-row" onclick="enableRowEdit(${index})" title="Edit Agent"><i class="fa-solid fa-pen"></i></button>
+                        <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Delete Agent"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1396,47 +1399,27 @@
     function handleDragOver(e, row) {
         if (e.preventDefault) e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-
-        const rect = row.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-        if (e.clientY < midY) {
-            row.classList.add('drag-over-top');
-            row.classList.remove('drag-over-bottom');
-        } else {
-            row.classList.add('drag-over-bottom');
-            row.classList.remove('drag-over-top');
-        }
+        row.classList.add('drag-over-swap');
         return false;
     }
 
     function handleDragLeave(row) {
-        row.classList.remove('drag-over-top', 'drag-over-bottom');
+        row.classList.remove('drag-over-swap');
     }
 
+    /* DIRECT 1-TO-1 SWAP WITHOUT SHIFTING ANY OTHER ROW */
     async function handleDrop(e, targetIndex) {
         e.stopPropagation();
         if (e.preventDefault) e.preventDefault();
 
-        const row = e.currentTarget;
-        let insertionIndex = targetIndex;
+        cleanAllDragOverClasses();
 
-        if (row) {
-            const rect = row.getBoundingClientRect();
-            const midY = rect.top + rect.height / 2;
-            if (e.clientY >= midY && targetIndex < draggedIndex) {
-                insertionIndex = targetIndex + 1;
-            } else if (e.clientY < midY && targetIndex > draggedIndex) {
-                insertionIndex = targetIndex - 1;
-            }
-            row.classList.remove('drag-over-top', 'drag-over-bottom');
-        }
-
-        if (draggedIndex !== null && draggedIndex !== insertionIndex) {
+        if (draggedIndex !== null && targetIndex !== null && draggedIndex !== targetIndex) {
             const country = countrySelect.value;
             const selectedDate = dateInput.value;
             const employees = await getCountryEmployees(country);
 
-            // 1. Reconstruir estado actual en pantalla para no perder cambios no guardados
+            // 1. Capture current live values from UI
             const currentAttendanceArray = employees.map((_, i) => {
                 const s = document.getElementById(`status_${i}`);
                 const c = document.getElementById(`comments_${i}`);
@@ -1446,18 +1429,20 @@
                 };
             });
 
-            // 2. Mover empleado en la lista base
-            const movedEmployee = employees.splice(draggedIndex, 1)[0];
-            employees.splice(insertionIndex, 0, movedEmployee);
+            // 2. Direct 1-to-1 swap for employees
+            const tempEmp = employees[draggedIndex];
+            employees[draggedIndex] = employees[targetIndex];
+            employees[targetIndex] = tempEmp;
 
-            // 3. Mover datos de asistencia exactamente a la par del empleado
-            const movedAttendance = currentAttendanceArray.splice(draggedIndex, 1)[0];
-            currentAttendanceArray.splice(insertionIndex, 0, movedAttendance);
+            // 3. Direct 1-to-1 swap for attendance records
+            const tempAtt = currentAttendanceArray[draggedIndex];
+            currentAttendanceArray[draggedIndex] = currentAttendanceArray[targetIndex];
+            currentAttendanceArray[targetIndex] = tempAtt;
 
-            // 4. Guardar empleados reordenados
+            // 4. Save swapped employee catalog
             await saveCountryEmployees(country, employees);
 
-            // 5. Actualizar y persistir el registro del día con los nuevos índices
+            // 5. Save swapped daily records
             const updatedDayData = {};
             currentAttendanceArray.forEach((rec, idx) => {
                 updatedDayData[idx] = rec;
@@ -1466,18 +1451,18 @@
             const storageKey = `attendance_${country}_${selectedDate}`;
             await dbPut(STORE_ATTENDANCE, "id", storageKey, updatedDayData);
 
-            // 6. Refrescar interfaz
+            // 6. Refresh view
             await renderCurrentTable();
-            showToast("¡Agente reubicado correctamente!");
+            showToast("Agents swapped successfully!");
         }
 
-        cleanAllDragOverClasses();
+        draggedIndex = null;
         return false;
     }
 
     function cleanAllDragOverClasses() {
         document.querySelectorAll('.draggable-row').forEach(r => {
-            r.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging');
+            r.classList.remove('drag-over-swap', 'dragging');
             r.draggable = false;
         });
     }
@@ -1502,8 +1487,8 @@
             const btnGroup = document.getElementById(`btn-group-${index}`);
             if (btnGroup) {
                 btnGroup.innerHTML = `
-                    <button class="action-btn btn-save-row" onclick="saveRowEdit(${index})" title="Guardar Cambios"><i class="fa-solid fa-floppy-disk"></i></button>
-                    <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Eliminar Agente"><i class="fa-solid fa-trash"></i></button>
+                    <button class="action-btn btn-save-row" onclick="saveRowEdit(${index})" title="Save Changes"><i class="fa-solid fa-floppy-disk"></i></button>
+                    <button class="action-btn btn-delete-row" onclick="deleteAgent(${index})" title="Delete Agent"><i class="fa-solid fa-trash"></i></button>
                 `;
             }
         });
@@ -1523,7 +1508,7 @@
 
         await saveCountryEmployees(country, employees);
         renderCurrentTable();
-        showToast("¡Información del agente actualizada!");
+        showToast("Agent information updated!");
     }
 
     function deleteAgent(index) {
@@ -1534,12 +1519,10 @@
             const selectedDate = dateInput.value;
             const employees = await getCountryEmployees(country);
 
-            if (confirm(`¿Está seguro de eliminar al agente "${employees[index].name}"?`)) {
-                // Eliminar empleado
+            if (confirm(`Are you sure you want to delete agent "${employees[index].name}"?`)) {
                 employees.splice(index, 1);
                 await saveCountryEmployees(country, employees);
 
-                // Reajustar registros de asistencia del día en IndexedDB
                 const storageKey = `attendance_${country}_${selectedDate}`;
                 const savedData = await dbGet(STORE_ATTENDANCE, storageKey) || {};
                 const newDayData = {};
@@ -1556,7 +1539,7 @@
                 await dbPut(STORE_ATTENDANCE, "id", storageKey, newDayData);
 
                 renderCurrentTable();
-                showToast("Agente eliminado exitosamente.");
+                showToast("Agent deleted successfully.");
             }
         });
     }
@@ -1569,7 +1552,7 @@
             const employees = await getCountryEmployees(country);
 
             const newAgent = {
-                name: "Nuevo Agente",
+                name: "New Agent",
                 team: "OBS - Cases",
                 supervisor: "Supervisor",
                 checkIn: "08:00:00",
@@ -1582,17 +1565,17 @@
 
             const newIndex = employees.length - 1;
             enableRowEdit(newIndex);
-            showToast("Nuevo agente añadido. Puedes editar su información.");
+            showToast("New agent added. You can now edit their details.");
         });
     }
 
-    /* --- GUARDADO EN INDEXEDDB --- */
+    /* --- SAVE DATA TO INDEXEDDB --- */
     async function saveData() {
         const country = countrySelect ? countrySelect.value : '';
         const selectedDate = dateInput ? dateInput.value : '';
 
         if (!selectedDate) {
-            alert("Por favor selecciona una fecha.");
+            alert("Please select a date.");
             return;
         }
 
@@ -1613,11 +1596,11 @@
 
         try {
             await dbPut(STORE_ATTENDANCE, "id", storageKey, dataToSave);
-            showToast(`¡Información de ${country} guardada para el ${selectedDate}!`);
+            showToast(`${country} attendance saved for ${selectedDate}!`);
             updateCounters();
         } catch (error) {
-            console.error("Error al guardar en IndexedDB:", error);
-            alert("Error al guardar: " + error.message);
+            console.error("Error saving to IndexedDB:", error);
+            alert("Error saving: " + error.message);
         }
     }
 
@@ -1626,7 +1609,7 @@
         const selectedDate = dateInput.value;
 
         if (!selectedDate) {
-            alert("Por favor selecciona una fecha.");
+            alert("Please select a date.");
             return;
         }
 
@@ -1757,10 +1740,10 @@
         });
     }
 
-    /* --- MOTOR CORREGIDO DE STATISTICS OF THE MONTH --- */
+    /* --- MONTHLY STATISTICS ENGINE --- */
     async function loadBranchStats(branch) {
         const tbody = document.getElementById('statsTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Cargando estadísticas...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Loading statistics...</td></tr>';
 
         const selectedMonth = document.getElementById('monthSelect').value;
         const selectedYear = document.getElementById('yearSelect').value;
@@ -1773,7 +1756,7 @@
 
         const offenderMap = {};
 
-        // 1. Obtener registros de IndexedDB
+        // 1. Fetch records from IndexedDB
         const allIndexedRecords = await dbGetAll(STORE_ATTENDANCE);
         const combinedDataMap = new Map();
 
@@ -1783,7 +1766,7 @@
             }
         });
 
-        // 2. Integrar datos históricos de localStorage que pudieran existir
+        // 2. Merge legacy localStorage records if any
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith(`attendance_${branch}_`) && !combinedDataMap.has(key)) {
@@ -1794,7 +1777,7 @@
             }
         }
 
-        // 3. Procesar datos del país, mes y año especificados
+        // 3. Process matched month and year data
         combinedDataMap.forEach((data, key) => {
             if (key.startsWith(`attendance_${branch}_`)) {
                 const dateStr = key.replace(`attendance_${branch}_`, '').trim();
@@ -1812,7 +1795,7 @@
                             
                             if (offenderStatuses.includes(status)) {
                                 const emp = employees[parseInt(index, 10)];
-                                const agentName = emp ? emp.name : `Agente #${parseInt(index, 10) + 1}`;
+                                const agentName = emp ? emp.name : `Agent #${parseInt(index, 10) + 1}`;
 
                                 if (!offenderMap[agentName]) offenderMap[agentName] = {};
                                 if (!offenderMap[agentName][status]) {
@@ -1847,7 +1830,7 @@
         const monthName = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
 
         if (offendersList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No hay incidencias registradas para ${branch} en ${monthName} de ${selectedYear}.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No offenses recorded for ${branch} in ${monthName} ${selectedYear}.</td></tr>`;
             return;
         }
 
