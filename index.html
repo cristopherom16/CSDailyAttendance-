@@ -33,16 +33,19 @@
         }
 
         body.light-mode {
-            --bg-color: #f4f6f9;
-            --card-bg: #ffffff;
-            --text-color: #212529;
-            --input-bg: #ffffff;
-            --input-text: #212529;
-            --table-bg: #ffffff;
-            --stat-card-bg: #f8f9fa;
-            --stat-title-color: #495057;
-            --section-title-color: #0b1329;
+            --bg-color: #ffe55c; /* Egg yellow background */
+            --card-bg: #ffbf00; /* Amber yellow cards */
+            --text-color: #001f3f; /* Dark blue text */
+            --input-bg: #ffbf00; /* Amber yellow inputs */
+            --input-text: #001f3f; /* Dark blue input text */
+            --table-bg: #ffbf00; /* Amber yellow table */
+            --stat-card-bg: #ffb300; /* Slightly darker amber for stats */
+            --stat-title-color: #001f3f; /* Dark blue stats titles */
+            --section-title-color: #001f3f; /* Dark blue section titles */
             --overlay-bg: rgba(0, 0, 0, 0.4);
+            --amber-color: #001f3f; /* Amber/Yellow turns to Dark Blue */
+            --border-color: #001f3f; /* Borders turn to Dark Blue */
+            --grid-line-color: #001f3f; /* Grid lines turn to Dark Blue */
         }
 
         * { box-sizing: border-box; }
@@ -180,7 +183,7 @@
             height: 42px;
             border-radius: 50%;
             background-color: #000000;
-            color: #ffc107;
+            color: var(--amber-color);
             border: 2px solid var(--amber-color);
             display: flex;
             align-items: center;
@@ -333,7 +336,7 @@
         tr.draggable-row { transition: background-color 0.2s; }
         tr.dragging { opacity: 0.35; background-color: #1e2d5a !important; }
         tr.drag-over-swap { 
-            outline: 3px dashed #ffc107 !important; 
+            outline: 3px dashed var(--amber-color) !important; 
             outline-offset: -3px; 
             background-color: rgba(255, 193, 7, 0.25) !important; 
         }
@@ -341,7 +344,7 @@
         .drag-handle { 
             cursor: grab; 
             margin-right: 8px; 
-            color: #ffc107; 
+            color: var(--amber-color); 
             padding: 6px;
             user-select: none;
             display: inline-block;
@@ -410,27 +413,27 @@
         .country-jamaica     { background-color: #fff9c4; color: #000; }
         .country-mexico      { background-color: #c8e6c9; color: #000; }
 
-        select.status-na                               { background-color: #ffffff !important; color: #333 !important; }
-        select.status-attended                         { background-color: #007e33 !important; color: #ffffff !important; }
-        select.status-day-off                          { background-color: #e0e0e0 !important; color: #000000 !important; }
-        select.status-late                             { background-color: #ff8a80 !important; color: #000000 !important; }
-        select.status-late-justified                   { background-color: #ff6d00 !important; color: #ffffff !important; }
-        select.status-sick-day                         { background-color: #ffd600 !important; color: #000000 !important; }
-        select.status-medical-appointment              { background-color: #c0ca33 !important; color: #000000 !important; }
-        select.status-escalated-sst                    { background-color: #00e5ff !important; color: #000000 !important; }
-        select.status-vacation                         { background-color: #a5d6a7 !important; color: #000000 !important; }
-        select.status-loa                              { background-color: #0288d1 !important; color: #ffffff !important; }
-        select.status-absent                           { background-color: #cc0000 !important; color: #ffffff !important; font-weight: bold; }
-        select.status-no-call-no-show                  { background-color: #4a0e17 !important; color: #ffffff !important; font-weight: bold; }
-        select.status-early-out                        { background-color: #90caf9 !important; color: #000000 !important; }
-        select.status-floating-holiday                 { background-color: #ce93d8 !important; color: #000000 !important; }
-        select.status-emergency-day-off                { background-color: #aa00ff !important; color: #ffffff !important; }
-        select.status-disciplinary-suspension          { background-color: #616161 !important; color: #ffffff !important; }
-        select.status-us-holiday                       { background-color: #0d47a1 !important; color: #ffffff !important; }
-        select.status-country-holiday                  { background-color: #00b0ff !important; color: #ffffff !important; }
-        select.status-bereavement-leave                { background-color: #000000 !important; color: #ffffff !important; }
-        select.status-marriage-paternity               { background-color: #ff007f !important; color: #ffffff !important; }
-        select.status-legal-process                    { background-color: #800020 !important; color: #ffffff !important; }
+        select.status-na               { background-color: #ffffff !important; color: #333 !important; }
+        select.status-attended         { background-color: #007e33 !important; color: #ffffff !important; }
+        select.status-day-off          { background-color: #e0e0e0 !important; color: #000000 !important; }
+        select.status-late             { background-color: #ff8a80 !important; color: #000000 !important; }
+        select.status-late-justified   { background-color: #ff6d00 !important; color: #ffffff !important; }
+        select.status-sick-day         { background-color: #ffd600 !important; color: #000000 !important; }
+        select.status-medical-appointment { background-color: #c0ca33 !important; color: #000000 !important; }
+        select.status-escalated-sst    { background-color: #00e5ff !important; color: #000000 !important; }
+        select.status-vacation         { background-color: #a5d6a7 !important; color: #000000 !important; }
+        select.status-loa              { background-color: #0288d1 !important; color: #ffffff !important; }
+        select.status-absent           { background-color: #cc0000 !important; color: #ffffff !important; font-weight: bold; }
+        select.status-no-call-no-show  { background-color: #4a0e17 !important; color: #ffffff !important; font-weight: bold; }
+        select.status-early-out        { background-color: #90caf9 !important; color: #000000 !important; }
+        select.status-floating-holiday { background-color: #ce93d8 !important; color: #000000 !important; }
+        select.status-emergency-day-off { background-color: #aa00ff !important; color: #ffffff !important; }
+        select.status-disciplinary-suspension { background-color: #616161 !important; color: #ffffff !important; }
+        select.status-us-holiday       { background-color: #0d47a1 !important; color: #ffffff !important; }
+        select.status-country-holiday  { background-color: #00b0ff !important; color: #ffffff !important; }
+        select.status-bereavement-leave { background-color: #000000 !important; color: #ffffff !important; }
+        select.status-marriage-paternity { background-color: #ff007f !important; color: #ffffff !important; }
+        select.status-legal-process    { background-color: #800020 !important; color: #ffffff !important; }
 
         .branch-tabs {
             display: flex;
@@ -461,7 +464,7 @@
 
         .dates-badge {
             background-color: #1a2744;
-            color: #ffc107;
+            color: var(--amber-color);
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 0.82rem;
