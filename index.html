@@ -112,41 +112,6 @@
             letter-spacing: 0.5px;
         }
 
-        .firebase-status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 11px;
-            border-radius: 20px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            border: 1px solid rgba(255,255,255,0.25);
-            background-color: rgba(255, 193, 7, 0.18);
-            color: var(--amber-color);
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .firebase-status-pill.synced {
-            background-color: rgba(25, 135, 84, 0.25);
-            border-color: #198754;
-            color: #75b798;
-        }
-        body.light-mode .firebase-status-pill.synced {
-            background-color: rgba(25, 135, 84, 0.25);
-            color: #0f5132;
-        }
-
-        .firebase-status-pill.error {
-            background-color: rgba(220, 53, 69, 0.28);
-            border-color: #dc3545;
-            color: #ea868f;
-        }
-        body.light-mode .firebase-status-pill.error {
-            background-color: rgba(220, 53, 69, 0.25);
-            color: #842029;
-        }
-
         .section-header-flex {
             display: flex;
             align-items: center;
@@ -659,9 +624,6 @@
             <div class="header-title-container">
                 <div class="title-emoji"><i class="fa-solid fa-clipboard-list"></i></div>
                 <h1 class="main-header-title">CUSTOMER SUPPORT DAILY ATTENDANCE:</h1>
-                <span id="firebaseStatusPill" class="firebase-status-pill" onclick="showFirebaseStatusDetails()" title="Click for Firebase sync details">
-                    <i class="fa-solid fa-cloud"></i> <span id="firebaseStatusText">Connecting...</span>
-                </span>
             </div>
             
             <div class="controls">
@@ -908,22 +870,6 @@
     };
 
     let firestoreDb = null;
-    let firebaseLastStatusMessage = "Connecting to Firebase...";
-
-    function setFirebaseStatus(state, label, detail) {
-        const pill = document.getElementById("firebaseStatusPill");
-        const txt = document.getElementById("firebaseStatusText");
-        firebaseLastStatusMessage = detail || label;
-        if (!pill || !txt) return;
-        pill.classList.remove("synced", "error");
-        if (state === "synced") pill.classList.add("synced");
-        if (state === "error") pill.classList.add("error");
-        txt.innerText = label;
-    }
-
-    function showFirebaseStatusDetails() {
-        alert(firebaseLastStatusMessage);
-    }
 
     try {
         if (typeof firebase !== "undefined") {
@@ -932,13 +878,10 @@
             }
             firestoreDb = firebase.firestore();
             firestoreDb.settings({ experimentalAutoDetectLongPolling: true, merge: true });
-        } else {
-            setFirebaseStatus("error", "Firebase SDK Offline", "Could not load Firebase SDK. Check your internet connection.");
         }
     } catch (e) {
         console.warn("Firebase init error:", e);
         firestoreDb = null;
-        setFirebaseStatus("error", "Firebase Init Error", "Firebase initialization error: " + e.message);
     }
 
     /* --- UNLIMITED INDEXEDDB + FIREBASE SYNC ENGINE --- */
@@ -1119,22 +1062,16 @@
                     data: value,
                     updatedAt: Date.now()
                 }, { merge: true });
-                setFirebaseStatus("synced", "Firebase: Synced ✓", "Connected to Firebase project: customersupportattendance.\nAll saved days are synced across computers.");
-            } catch (err) {
-                setFirebaseStatus("error", "Firebase: Sync Error", "Firebase Error: " + err.message + "\n\nMake sure Cloud Firestore is enabled in Firebase Console (project: customersupportattendance) with Rules set to:\nallow read, write: if true;");
-                throw err;
             } finally {
                 setTimeout(() => { isSavingLocally = false; }, 600);
             }
         }
     }
 
-    /* --- FULL BIDIRECTIONAL SYNC: PROTECTS ALL 2 MONTHS OF HISTORY & SHARES WITH TEAM --- */
+    /* --- FULL BIDIRECTIONAL SYNC: PROTECTS ALL HISTORICAL DATA & SHARES WITH TEAM --- */
     async function syncWithFirebase() {
         if (!firestoreDb) return;
         try {
-            setFirebaseStatus("", "Syncing with Firebase...", "Syncing attendance records with Firebase...");
-
             // 1. Read all local historical records first (never delete any local record)
             const [localAttItems, localEmpItems] = await Promise.all([
                 dbGetAll(STORE_ATTENDANCE),
@@ -1230,15 +1167,7 @@
                     const chunk = uploadTasks.slice(i, i + CHUNK_SIZE).map(fn => fn());
                     await Promise.all(chunk);
                 }
-                showToast(`Synced ${uploadTasks.length} historical record(s) to Firebase!`);
             }
-
-            const totalDaysInCloud = cloudAttIds.size + uploadTasks.length;
-            setFirebaseStatus(
-                "synced",
-                `Firebase: Synced (${totalDaysInCloud} days)`,
-                `Connected to Firebase project: customersupportattendance.\nTotal synced attendance records: ${totalDaysInCloud}.\nEveryone with the link sees this data automatically.`
-            );
 
             if (pulledNewCloudData) {
                 await renderCurrentTable();
@@ -1283,7 +1212,7 @@
                     }
                 }
             }, (err) => {
-                setFirebaseStatus("error", "Firebase: Permission Denied", "Firestore Rules Error: " + err.message + "\n\nOpen Firebase Console -> Firestore Database -> Rules and set:\nallow read, write: if true;");
+                console.warn("Attendance snapshot warning:", err);
             });
 
             firestoreDb.collection(STORE_EMPLOYEES).onSnapshot(async (snapshot) => {
@@ -1321,11 +1250,6 @@
             });
         } catch (e) {
             console.warn("Firebase sync error:", e);
-            setFirebaseStatus(
-                "error",
-                "Firebase: Check Rules",
-                "Could not sync with Firebase: " + e.message + "\n\nPlease verify in Firebase Console (customersupportattendance):\n1. Firestore Database is created.\n2. Rules allow read/write: allow read, write: if true;"
-            );
         }
     }
 
@@ -1784,7 +1708,7 @@
         });
     });
 
-    // Render immediately from local storage/IndexedDB first, then sync with Firebase
+    // Render immediately from local storage/IndexedDB first, then sync with Firebase silently
     renderCurrentTable();
     dateInput.addEventListener('change', renderCurrentTable);
     setTimeout(() => { syncWithFirebase(); }, 200);
@@ -2180,7 +2104,7 @@
 
         try {
             await dbPut(STORE_ATTENDANCE, "id", storageKey, dataToSave);
-            showToast(`${country} attendance saved & synced for ${selectedDate}!`);
+            showToast(`${country} attendance saved for ${selectedDate}!`);
             updateCounters();
             // Keep Teams % summary synchronized as attendance is saved during the day
             if (document.getElementById('teamsView').style.display === 'block') {
@@ -2189,7 +2113,7 @@
         } catch (error) {
             console.error("Error saving to Firebase:", error);
             showToast(`${country} attendance saved locally for ${selectedDate}!`);
-            alert("Saved locally on your computer, but Firebase could not sync:\n" + error.message + "\n\nMake sure Cloud Firestore is enabled in Firebase Console (customersupportattendance) with Rules set to:\nallow read, write: if true;");
+            alert("Saved locally on your computer, but Firebase could not sync:\n" + error.message);
         }
     }
 
