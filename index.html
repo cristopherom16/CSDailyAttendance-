@@ -261,9 +261,11 @@
 
         .table-responsive {
             overflow-x: auto;
+            overflow-y: auto;
             max-height: 70vh;
             border: 1px solid var(--grid-line-color);
             border-radius: 6px;
+            position: relative;
         }
 
         table {
@@ -283,9 +285,76 @@
         table thead tr th, th {
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 20;
             font-weight: bold !important;
             text-align: center !important;
+            background-color: #0d47a1;
+            color: #ffffff;
+        }
+
+        /* Prevent sticky header overlap / bleed-through in Monthly Statistics table */
+        #statsView table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        #statsView table th,
+        #statsView table td {
+            border-top: none !important;
+            border-left: none !important;
+            border-right: 1px solid var(--grid-line-color) !important;
+            border-bottom: 1px solid var(--grid-line-color) !important;
+        }
+
+        #statsView table th:last-child,
+        #statsView table td:last-child {
+            border-right: none !important;
+        }
+
+        #statsView table thead tr th {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+        }
+
+        .stats-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .stats-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .stats-filter-group label {
+            font-weight: 700;
+            font-size: 0.88rem;
+            color: var(--amber-color);
+            white-space: nowrap;
+        }
+
+        .stats-filter-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--amber-color);
+            border-radius: 6px;
+            font-size: 0.92rem;
+            outline: none;
+            background-color: var(--card-bg);
+            color: var(--input-text);
+            font-weight: 600;
         }
 
         .header-guatemala   { background-color: #0d47a1 !important; color: #ffffff !important; }
@@ -460,7 +529,7 @@
             gap: 10px;
             border-bottom: 2px solid var(--border-color);
             padding-bottom: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             overflow-x: auto;
         }
 
@@ -826,10 +895,35 @@
 
         <div class="branch-tabs" id="branchTabs"></div>
 
+        <div class="stats-filter-bar">
+            <div class="stats-filter-group">
+                <label for="statsAgentFilter"><i class="fa-solid fa-user"></i> AGENT NAME:</label>
+                <input type="text" id="statsAgentFilter" list="statsAgentDatalist" class="stats-filter-input" placeholder="Filter by Agent Name..." oninput="applyStatsFilters()">
+                <datalist id="statsAgentDatalist"></datalist>
+            </div>
+
+            <div class="stats-filter-group">
+                <label for="statsStatusFilter"><i class="fa-solid fa-filter"></i> STATUS:</label>
+                <select id="statsStatusFilter" class="nav-select" style="width: 100%;" onchange="applyStatsFilters()">
+                    <option value="ALL" selected>All Statuses</option>
+                    <option value="ABSENT">ABSENT</option>
+                    <option value="NO CALL/NO SHOW">NO CALL/NO SHOW</option>
+                    <option value="LATE">LATE</option>
+                    <option value="LATE JUSTIFIED (BACK UP DOC.)">LATE JUSTIFIED (BACK UP DOC.)</option>
+                    <option value="SICK DAY">SICK DAY</option>
+                    <option value="EMERGENCY DAY OFF">EMERGENCY DAY OFF</option>
+                    <option value="EARLY OUT">EARLY OUT</option>
+                    <option value="DISCIPLINARY SUSPENSION">DISCIPLINARY SUSPENSION</option>
+                </select>
+            </div>
+
+            <button class="btn btn-back" type="button" onclick="clearStatsFilters()"><i class="fa-solid fa-rotate-left"></i> Clear Filters</button>
+        </div>
+
         <div class="table-responsive">
             <table>
                 <thead>
-                    <tr>
+                    <tr id="statsTableHeaderRow">
                         <th>AGENT NAME</th>
                         <th>STATUS</th>
                         <th>TIMES ON STATUS</th>
@@ -1618,6 +1712,7 @@
     let draggedIndex = null;
     let authCallback = null;
     let currentTeamsRows = [];
+    let currentStatsOffendersList = [];
 
     // Use local timezone date (prevents UTC rollover bug after 6 PM)
     const todayDate = new Date();
@@ -2598,9 +2693,30 @@
         const tbody = document.getElementById('statsTableBody');
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Loading statistics...</td></tr>';
 
+        // Apply solid opaque country header color so sticky column headers never overlap rows when scrolling
+        const statsHeaderRow = document.getElementById('statsTableHeaderRow');
+        if (statsHeaderRow) {
+            const headerClass = getHeaderClass(branch) || 'header-guatemala';
+            statsHeaderRow.querySelectorAll('th').forEach(th => {
+                th.className = headerClass;
+            });
+        }
+
         const selectedMonth = document.getElementById('monthSelect').value;
         const selectedYear = document.getElementById('yearSelect').value;
         const employees = await getCountryEmployees(branch);
+
+        // Populate Agent Name autocomplete datalist for the selected country
+        const agentDatalist = document.getElementById('statsAgentDatalist');
+        if (agentDatalist) {
+            agentDatalist.innerHTML = '';
+            const uniqueNames = Array.from(new Set(employees.map(e => e.name).filter(Boolean))).sort();
+            uniqueNames.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                agentDatalist.appendChild(opt);
+            });
+        }
         
         const offenderStatuses = [
             "ABSENT", "NO CALL/NO SHOW", "LATE", "LATE JUSTIFIED (BACK UP DOC.)", 
@@ -2668,22 +2784,56 @@
         });
 
         offendersList.sort((a, b) => b.count - a.count);
+        currentStatsOffendersList = offendersList;
 
-        const monthName = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
+        renderFilteredStatsTable();
+    }
 
-        if (offendersList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No offenses recorded for ${branch} in ${monthName} ${selectedYear}.</td></tr>`;
+    function applyStatsFilters() {
+        renderFilteredStatsTable();
+    }
+
+    function clearStatsFilters() {
+        const agentInput = document.getElementById('statsAgentFilter');
+        const statusSelect = document.getElementById('statsStatusFilter');
+        if (agentInput) agentInput.value = '';
+        if (statusSelect) statusSelect.value = 'ALL';
+        renderFilteredStatsTable();
+    }
+
+    function renderFilteredStatsTable() {
+        const tbody = document.getElementById('statsTableBody');
+        const monthSelectEl = document.getElementById('monthSelect');
+        const monthName = monthSelectEl.options[monthSelectEl.selectedIndex].text;
+        const selectedYear = document.getElementById('yearSelect').value;
+
+        const agentQuery = (document.getElementById('statsAgentFilter')?.value || '').trim().toLowerCase();
+        const statusQuery = (document.getElementById('statsStatusFilter')?.value || 'ALL').trim().toUpperCase();
+
+        if (!currentStatsOffendersList || currentStatsOffendersList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No offenses recorded for ${activeStatsBranch} in ${monthName} ${selectedYear}.</td></tr>`;
+            return;
+        }
+
+        const filteredList = currentStatsOffendersList.filter(item => {
+            const matchesAgent = !agentQuery || item.name.toLowerCase().includes(agentQuery);
+            const matchesStatus = statusQuery === 'ALL' || item.status === statusQuery;
+            return matchesAgent && matchesStatus;
+        });
+
+        if (filteredList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No matching records for the selected filters in ${activeStatsBranch} (${monthName} ${selectedYear}).</td></tr>`;
             return;
         }
 
         tbody.innerHTML = '';
-        offendersList.forEach(item => {
+        filteredList.forEach(item => {
             const row = document.createElement('tr');
             const datesBadges = item.dates.map(d => `<span class="dates-badge">${d}</span>`).join(' ');
 
             row.innerHTML = `
-                <td><strong>${item.name}</strong></td>
-                <td style="text-align: center;"><span style="padding: 4px 8px; border-radius: 4px;" class="${statusClassMap[item.status] || ''}">${item.status}</span></td>
+                <td><strong>${escapeHtml(item.name)}</strong></td>
+                <td style="text-align: center;"><span style="padding: 4px 8px; border-radius: 4px;" class="${statusClassMap[item.status] || ''}">${escapeHtml(item.status)}</span></td>
                 <td style="text-align: center; font-weight: bold; font-size: 1.1rem; color: var(--amber-color);">${item.count}</td>
                 <td>${datesBadges}</td>
             `;
