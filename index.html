@@ -418,14 +418,6 @@
         .country-jamaica     { background-color: #fff9c4; color: #000; }
         .country-mexico      { background-color: #c8e6c9; color: #000; }
 
-        /* Country-based colors for Department - Country column in See Teams % */
-        td.dept-country-guatemala   { background-color: #81d4fa !important; color: #000000 !important; font-weight: 800 !important; }
-        td.dept-country-mexico      { background-color: #1b5e20 !important; color: #ffffff !important; font-weight: 800 !important; }
-        td.dept-country-panama      { background-color: #cc0000 !important; color: #ffffff !important; font-weight: 800 !important; }
-        td.dept-country-colombia    { background-color: #ff6d00 !important; color: #000000 !important; font-weight: 800 !important; }
-        td.dept-country-philippines { background-color: #ce93d8 !important; color: #000000 !important; font-weight: 800 !important; }
-        td.dept-country-jamaica     { background-color: #ffd600 !important; color: #000000 !important; font-weight: 800 !important; }
-
         select.status-na               { background-color: #ffffff !important; color: #333 !important; }
         select.status-attended         { background-color: #007e33 !important; color: #ffffff !important; }
         select.status-day-off          { background-color: #e0e0e0 !important; color: #000000 !important; }
@@ -680,26 +672,13 @@
         <div class="header">
             <div class="header-title-container">
                 <div class="title-emoji"><i class="fa-solid fa-users"></i></div>
-                <h1 class="main-header-title">TEAMS ATTENDANCE SUMMARY (%)</h1>
+                <h1 class="main-header-title">TEAMS ATTENDANCE SUMMARY (%) - ALL COUNTRIES</h1>
             </div>
 
             <div class="controls">
                 <div class="selector-group">
                     <label for="teamsDateSelect">DATE:</label>
                     <input type="date" id="teamsDateSelect" onchange="loadTeamsTable()">
-                </div>
-
-                <div class="selector-group">
-                    <label for="teamsCountryFilter">COUNTRY:</label>
-                    <select id="teamsCountryFilter" class="nav-select" onchange="loadTeamsTable()">
-                        <option value="ALL" selected>All Countries</option>
-                        <option value="Colombia">Colombia</option>
-                        <option value="Guatemala">Guatemala</option>
-                        <option value="Jamaica">Jamaica</option>
-                        <option value="Mexico">Mexico</option>
-                        <option value="Panama">Panama</option>
-                        <option value="Philippines">Philippines</option>
-                    </select>
                 </div>
 
                 <button class="btn btn-back" onclick="showMainView()"><i class="fa-solid fa-arrow-left"></i> Back to Attendance Table</button>
@@ -729,7 +708,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th class="header-teams" style="text-align: left !important;">DEPARTMENT - COUNTRY</th>
+                        <th class="header-teams" style="text-align: left !important;">TEAM</th>
                         <th class="header-teams">NUMBER OF AGENTS IN</th>
                         <th class="header-teams">% OF UNEXPECTED ABSENCES</th>
                         <th class="header-teams">% OF LATES</th>
@@ -1038,24 +1017,6 @@
         ]
     };
 
-    const countryShortCode = {
-        "Colombia": "COL",
-        "Guatemala": "GUA",
-        "Jamaica": "JAM",
-        "Mexico": "MEX",
-        "Panama": "PAN",
-        "Philippines": "PHI"
-    };
-
-    const deptCountryClassMap = {
-        "Guatemala": "dept-country-guatemala",
-        "Mexico": "dept-country-mexico",
-        "Panama": "dept-country-panama",
-        "Colombia": "dept-country-colombia",
-        "Philippines": "dept-country-philippines",
-        "Jamaica": "dept-country-jamaica"
-    };
-
     async function getCountryEmployees(country) {
         const stored = await dbGet(STORE_EMPLOYEES, country);
         if (stored && Array.isArray(stored) && stored.length > 0) {
@@ -1115,16 +1076,6 @@
 
     function cleanString(str) {
         return str ? str.toString().toUpperCase().replace(/[^A-Z]/g, '') : '';
-    }
-
-    function normalizeTeamLabel(teamName) {
-        if (!teamName) return 'UNASSIGNED';
-        return teamName
-            .toString()
-            .trim()
-            .replace(/\s*-\s*/g, ' ')
-            .replace(/\s+/g, ' ')
-            .toUpperCase();
     }
 
     function getTeamClass(teamName) {
@@ -1841,7 +1792,35 @@
     const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
     let activeStatsBranch = countrySelect.value || "Guatemala";
 
-    /* --- TEAMS % VIEW & ENGINE --- */
+    /* --- TEAMS % VIEW & ENGINE (CONSOLIDATED ACROSS ALL COUNTRIES) --- */
+    const fixedTeamsConfig = [
+        { key: 'MANAGEMENT', label: 'Management Team', cssClass: 'team-management' },
+        { key: 'OBSCASES', label: 'OBS - Cases Team', cssClass: 'team-obscases' },
+        { key: 'OBSPHONES', label: 'OBS - Phones Team', cssClass: 'team-obsphones' },
+        { key: 'ELDCASES', label: 'ELD - Cases Team', cssClass: 'team-eldcases' },
+        { key: 'ELDPHONES', label: 'ELD - Phones Team', cssClass: 'team-eldphones' },
+        { key: 'INSCASES', label: 'INS - Cases Team', cssClass: 'team-inscases' },
+        { key: 'INSPHONES', label: 'INS - Phones Team', cssClass: 'team-insphones' },
+        { key: 'INTRACANADIAN', label: 'Intra - Canadian Team', cssClass: 'team-intracanadian' },
+        { key: 'LOADLOCK', label: 'Load Lock Team', cssClass: 'team-loadlock' },
+        { key: 'TFX', label: 'TFX Team', cssClass: 'team-tfx' }
+    ];
+
+    function mapTeamToFixedKey(rawTeam) {
+        const clean = cleanString(rawTeam);
+        if (clean === 'MANAGEMENT') return 'MANAGEMENT';
+        if (clean === 'OBSCASES' || clean === 'CASES') return 'OBSCASES';
+        if (clean === 'OBSPHONES' || clean === 'PHONES') return 'OBSPHONES';
+        if (clean === 'ELDCASES') return 'ELDCASES';
+        if (clean === 'ELDPHONES') return 'ELDPHONES';
+        if (clean === 'INSCASES') return 'INSCASES';
+        if (clean === 'INSPHONES') return 'INSPHONES';
+        if (clean === 'INTRACANADIAN') return 'INTRACANADIAN';
+        if (clean === 'LOADLOCK') return 'LOADLOCK';
+        if (clean === 'TFX') return 'TFX';
+        return null;
+    }
+
     function showTeamsView() {
         document.getElementById('mainAttendanceView').style.display = 'none';
         document.getElementById('statsView').style.display = 'none';
@@ -1859,86 +1838,59 @@
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
 
         const selectedDate = document.getElementById('teamsDateSelect').value || dateInput.value;
-        const countryFilter = document.getElementById('teamsCountryFilter').value;
+        const allCountries = Object.keys(passwordsByCountry);
 
-        const targetCountries = countryFilter === 'ALL'
-            ? ["Guatemala", "Colombia", "Jamaica", "Mexico", "Panama", "Philippines"]
-            : [countryFilter];
+        // Initialize the 10 fixed team buckets
+        const teamMap = new Map();
+        fixedTeamsConfig.forEach(cfg => {
+            teamMap.set(cfg.key, {
+                label: cfg.label,
+                cssClass: cfg.cssClass,
+                agentsIn: 0,
+                unexpectedCount: 0,
+                latesCount: 0,
+                notStartedCount: 0
+            });
+        });
 
-        const teamRows = [];
         let grandTotalAgentsIn = 0;
         let grandTotalUnexpected = 0;
         let grandTotalLates = 0;
         let grandTotalNotStarted = 0;
 
-        for (const country of targetCountries) {
+        for (const country of allCountries) {
             const storageKey = `attendance_${country}_${selectedDate}`;
             const savedData = await dbGet(STORE_ATTENDANCE, storageKey) || {};
             const employees = await getCountryEmployees(country);
-            const code = countryShortCode[country] || country.toUpperCase().slice(0, 3);
-
-            // Group agents by normalized department/team within this country
-            const deptMap = new Map();
 
             employees.forEach((emp, idx) => {
-                const rawTeam = emp.team || 'Unassigned';
-                const normTeam = normalizeTeamLabel(rawTeam);
+                const teamKey = mapTeamToFixedKey(emp.team);
+                if (!teamKey || !teamMap.has(teamKey)) return;
 
-                if (!deptMap.has(normTeam)) {
-                    deptMap.set(normTeam, {
-                        label: `${normTeam} - ${code}`,
-                        country: country,
-                        rawTeam: rawTeam,
-                        agentsIn: 0,
-                        unexpectedCount: 0,
-                        latesCount: 0,
-                        notStartedCount: 0
-                    });
-                }
-
-                const entry = deptMap.get(normTeam);
+                const entry = teamMap.get(teamKey);
                 const record = savedData[idx];
                 const statusVal = (record && typeof record.status === 'string') ? record.status.trim().toUpperCase() : '';
 
                 if (attendedStatuses.includes(statusVal)) {
                     entry.agentsIn += 1;
+                    grandTotalAgentsIn += 1;
                 }
                 if (unexpectedAbsences.includes(statusVal)) {
                     entry.unexpectedCount += 1;
+                    grandTotalUnexpected += 1;
                 }
                 if (statusVal === 'LATE' || statusVal === 'LATE JUSTIFIED (BACK UP DOC.)') {
                     entry.latesCount += 1;
+                    grandTotalLates += 1;
                 }
                 if (statusVal === 'N/A') {
                     entry.notStartedCount += 1;
+                    grandTotalNotStarted += 1;
                 }
-            });
-
-            deptMap.forEach((stats) => {
-                const startedScheduledCount = stats.agentsIn + stats.unexpectedCount;
-                const totalActiveRosterToday = stats.agentsIn + stats.unexpectedCount + stats.notStartedCount;
-
-                const unexpectedPct = startedScheduledCount > 0 ? ((stats.unexpectedCount / startedScheduledCount) * 100) : 0;
-                const latesPct = startedScheduledCount > 0 ? ((stats.latesCount / startedScheduledCount) * 100) : 0;
-                const notStartedPct = totalActiveRosterToday > 0 ? ((stats.notStartedCount / totalActiveRosterToday) * 100) : 0;
-
-                grandTotalAgentsIn += stats.agentsIn;
-                grandTotalUnexpected += stats.unexpectedCount;
-                grandTotalLates += stats.latesCount;
-                grandTotalNotStarted += stats.notStartedCount;
-
-                teamRows.push({
-                    ...stats,
-                    startedScheduledCount,
-                    totalActiveRosterToday,
-                    unexpectedPct,
-                    latesPct,
-                    notStartedPct
-                });
             });
         }
 
-        // Update top summary KPI cards
+        // Update top summary KPI cards across all countries
         const grandStartedScheduled = grandTotalAgentsIn + grandTotalUnexpected;
         const grandTotalRoster = grandTotalAgentsIn + grandTotalUnexpected + grandTotalNotStarted;
 
@@ -1951,30 +1903,32 @@
         document.getElementById('teamsGlobalLatesPct').innerText = `${globalLatesPct}%`;
         document.getElementById('teamsGlobalNotStartedPct').innerText = `${globalNotStartedPct}%`;
 
-        if (teamRows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #b0bec5;">No teams found for the selected filter.</td></tr>';
-            return;
-        }
-
         tbody.innerHTML = '';
-        teamRows.forEach(item => {
-            const row = document.createElement('tr');
-            const deptCountryClass = deptCountryClassMap[item.country] || '';
-            const unexpBadgeClass = item.unexpectedPct > 0 ? 'pct-badge pct-alert' : 'pct-badge pct-zero';
-            const latesBadgeClass = item.latesPct > 0 ? 'pct-badge pct-warn' : 'pct-badge pct-zero';
-            const notStartedBadgeClass = item.notStartedPct > 0 ? 'pct-badge pct-info' : 'pct-badge pct-zero';
+        fixedTeamsConfig.forEach(cfg => {
+            const stats = teamMap.get(cfg.key);
+            const startedScheduledCount = stats.agentsIn + stats.unexpectedCount;
+            const totalActiveRosterToday = stats.agentsIn + stats.unexpectedCount + stats.notStartedCount;
 
+            const unexpectedPct = startedScheduledCount > 0 ? ((stats.unexpectedCount / startedScheduledCount) * 100) : 0;
+            const latesPct = startedScheduledCount > 0 ? ((stats.latesCount / startedScheduledCount) * 100) : 0;
+            const notStartedPct = totalActiveRosterToday > 0 ? ((stats.notStartedCount / totalActiveRosterToday) * 100) : 0;
+
+            const unexpBadgeClass = unexpectedPct > 0 ? 'pct-badge pct-alert' : 'pct-badge pct-zero';
+            const latesBadgeClass = latesPct > 0 ? 'pct-badge pct-warn' : 'pct-badge pct-zero';
+            const notStartedBadgeClass = notStartedPct > 0 ? 'pct-badge pct-info' : 'pct-badge pct-zero';
+
+            const row = document.createElement('tr');
             row.innerHTML = `
-                <td class="${deptCountryClass}">${item.label}</td>
-                <td style="text-align: center; font-weight: bold; font-size: 1.05rem;">${item.agentsIn}</td>
-                <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.startedScheduledCount} started/scheduled">
-                    <span class="${unexpBadgeClass}">${item.unexpectedPct.toFixed(1)}%</span>
+                <td class="${stats.cssClass}">${stats.label}</td>
+                <td style="text-align: center; font-weight: bold; font-size: 1.05rem;">${stats.agentsIn}</td>
+                <td style="text-align: center;" title="${stats.unexpectedCount} unexpected absence(s) out of ${startedScheduledCount} started/scheduled">
+                    <span class="${unexpBadgeClass}">${unexpectedPct.toFixed(1)}%</span>
                 </td>
-                <td style="text-align: center;" title="${item.latesCount} late(s) out of ${item.startedScheduledCount} started/scheduled">
-                    <span class="${latesBadgeClass}">${item.latesPct.toFixed(1)}%</span>
+                <td style="text-align: center;" title="${stats.latesCount} late(s) out of ${startedScheduledCount} started/scheduled">
+                    <span class="${latesBadgeClass}">${latesPct.toFixed(1)}%</span>
                 </td>
-                <td style="text-align: center;" title="${item.notStartedCount} agent(s) in N/A out of ${item.totalActiveRosterToday} scheduled today">
-                    <span class="${notStartedBadgeClass}">${item.notStartedPct.toFixed(1)}%</span>
+                <td style="text-align: center;" title="${stats.notStartedCount} agent(s) in N/A out of ${totalActiveRosterToday} scheduled today">
+                    <span class="${notStartedBadgeClass}">${notStartedPct.toFixed(1)}%</span>
                 </td>
             `;
             tbody.appendChild(row);
