@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS with CSS Styles Support -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <!-- Firebase Compat SDKs (Works reliably on both file:// and https://) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --primary-color: #0d6efd;
@@ -851,19 +854,10 @@
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-analytics.js";
-    import {
-        getFirestore,
-        doc,
-        getDoc,
-        setDoc,
-        getDocs,
-        collection,
-        onSnapshot
-    } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
+<script>
+    const MANAGEMENT_PASSWORD = "management2026!";
 
+    /* --- FIREBASE INITIALIZATION (SAFE, NON-BLOCKING) --- */
     const firebaseConfig = {
         apiKey: "AIzaSyB3v43flyyqaBtq7vtb7OUA-Crx9Wn9UnE",
         authDomain: "customersupportattendance.firebaseapp.com",
@@ -874,17 +868,20 @@
         measurementId: "G-DBKTZT3C4X"
     };
 
-    const app = initializeApp(firebaseConfig);
+    let firestoreDb = null;
     try {
-        getAnalytics(app);
+        if (typeof firebase !== "undefined") {
+            if (!firebase.apps || firebase.apps.length === 0) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            firestoreDb = firebase.firestore();
+        }
     } catch (e) {
-        console.warn("Analytics skipped:", e);
+        console.warn("Firebase initialization warning:", e);
+        firestoreDb = null;
     }
-    const firestoreDb = getFirestore(app);
 
-    const MANAGEMENT_PASSWORD = "management2026!";
-
-    /* --- UNLIMITED INDEXEDDB + FIREBASE FIRESTORE ENGINE --- */
+    /* --- UNLIMITED INDEXEDDB + FIREBASE SYNC ENGINE --- */
     const DB_NAME = "AttendanceSystemDB";
     const DB_VERSION = 2;
     const STORE_ATTENDANCE = "daily_attendance";
@@ -894,10 +891,12 @@
 
     async function requestStoragePersistence() {
         if (navigator.storage && navigator.storage.persist) {
-            const isPersisted = await navigator.storage.persisted();
-            if (!isPersisted) {
-                await navigator.storage.persist();
-            }
+            try {
+                const isPersisted = await navigator.storage.persisted();
+                if (!isPersisted) {
+                    await navigator.storage.persist();
+                }
+            } catch (e) {}
         }
     }
     requestStoragePersistence();
@@ -971,54 +970,16 @@
         });
     }
 
-    async function dbPut(storeName, keyField, key, value) {
-        // 1. Always save locally first so local records are never lost
-        await localDbPut(storeName, keyField, key, value);
-
-        // 2. Sync to Firebase Firestore so all computers see it
-        isSavingLocally = true;
-        try {
-            const docRef = doc(firestoreDb, storeName, key);
-            await setDoc(docRef, {
-                [keyField]: key,
-                data: value,
-                updatedAt: Date.now()
-            }, { merge: true });
-        } finally {
-            setTimeout(() => { isSavingLocally = false; }, 500);
-        }
-    }
-
+    // Instant local read (never blocks UI on network)
     async function dbGet(storeName, key) {
-        const localVal = await localDbGet(storeName, key);
-        try {
-            const docRef = doc(firestoreDb, storeName, key);
-            const snap = await getDoc(docRef);
-            if (snap.exists() && snap.data() && snap.data().data !== undefined) {
-                const cloudVal = snap.data().data;
-                const keyField = storeName === STORE_EMPLOYEES ? "country" : "id";
-                await localDbPut(storeName, keyField, key, cloudVal);
-                return cloudVal;
-            } else if (localVal !== null && localVal !== undefined) {
-                // Local has historical data not yet in Firebase: upload it without deleting anything
-                const keyField = storeName === STORE_EMPLOYEES ? "country" : "id";
-                setDoc(docRef, {
-                    [keyField]: key,
-                    data: localVal,
-                    updatedAt: Date.now()
-                }, { merge: true }).catch(() => {});
-            }
-        } catch (e) {
-            console.warn("Firebase read fallback to local:", e);
-        }
-        return localVal;
+        return await localDbGet(storeName, key);
     }
 
+    // Instant local getAll + legacy localStorage merge
     async function dbGetAll(storeName) {
         const keyField = storeName === STORE_EMPLOYEES ? "country" : "id";
         const mergedMap = new Map();
 
-        // 1. Load all local IndexedDB items first (preserves all 2 months of history)
         const localItems = await localDbGetAll(storeName);
         localItems.forEach(item => {
             if (item && item[keyField] && item.data !== undefined) {
@@ -1026,7 +987,6 @@
             }
         });
 
-        // 2. Also include any legacy localStorage items
         if (storeName === STORE_ATTENDANCE) {
             for (let i = 0; i < localStorage.length; i++) {
                 const k = localStorage.key(i);
@@ -1058,79 +1018,66 @@
             }
         }
 
-        // 3. Merge with Firebase Firestore without ever erasing local history
-        try {
-            const snap = await getDocs(collection(firestoreDb, storeName));
-            const cloudIds = new Set();
-
-            for (const docSnap of snap.docs) {
-                const d = docSnap.data();
-                if (d && d.data !== undefined) {
-                    const idVal = d[keyField] || docSnap.id;
-                    cloudIds.add(idVal);
-                    const record = { [keyField]: idVal, data: d.data };
-                    mergedMap.set(idVal, record);
-                    await localDbPut(storeName, keyField, idVal, d.data);
-                }
-            }
-
-            // Upload any local historical records that are not yet in Firebase
-            for (const [idVal, item] of mergedMap.entries()) {
-                if (!cloudIds.has(idVal) && item.data !== undefined) {
-                    setDoc(doc(firestoreDb, storeName, idVal), {
-                        [keyField]: idVal,
-                        data: item.data,
-                        updatedAt: Date.now()
-                    }, { merge: true }).catch(() => {});
-                }
-            }
-        } catch (e) {
-            console.warn("Firebase getAll fallback to local:", e);
-        }
-
         return Array.from(mergedMap.values());
     }
 
-    /* --- AUTOMATIC ONE-TIME BACKGROUND MIGRATION OF ALL EXISTING LOCAL RECORDS TO FIREBASE --- */
-    async function migrateLocalHistoryToFirebase() {
+    // Save locally FIRST (guaranteed safe), then push to Firebase Firestore
+    async function dbPut(storeName, keyField, key, value) {
+        await localDbPut(storeName, keyField, key, value);
         try {
-            const allLocalAttendance = await localDbGetAll(STORE_ATTENDANCE);
-            const localAttendanceMap = new Map();
+            const legacyKey = storeName === STORE_EMPLOYEES ? `CS_EMPLOYEES_LIST_${key}` : key;
+            localStorage.setItem(legacyKey, JSON.stringify(value));
+        } catch (e) {}
 
-            allLocalAttendance.forEach(item => {
+        if (firestoreDb) {
+            isSavingLocally = true;
+            try {
+                await firestoreDb.collection(storeName).doc(key).set({
+                    [keyField]: key,
+                    data: value,
+                    updatedAt: Date.now()
+                }, { merge: true });
+            } finally {
+                setTimeout(() => { isSavingLocally = false; }, 600);
+            }
+        }
+    }
+
+    /* --- BACKGROUND FIREBASE SYNC: PROTECTS ALL 2 MONTHS OF HISTORY & SHARES WITH TEAM --- */
+    async function syncWithFirebase() {
+        if (!firestoreDb) return;
+        try {
+            // 1. Sync Attendance History (Merge Local + Cloud without deleting anything)
+            const localAttItems = await dbGetAll(STORE_ATTENDANCE);
+            const localAttMap = new Map();
+            localAttItems.forEach(item => {
                 if (item && item.id && item.data !== undefined) {
-                    localAttendanceMap.set(item.id, item.data);
+                    localAttMap.set(item.id, item.data);
                 }
             });
 
-            for (let i = 0; i < localStorage.length; i++) {
-                const k = localStorage.key(i);
-                if (k && k.startsWith("attendance_") && !localAttendanceMap.has(k)) {
-                    try {
-                        const parsed = JSON.parse(localStorage.getItem(k));
-                        if (parsed) {
-                            localAttendanceMap.set(k, parsed);
-                            await localDbPut(STORE_ATTENDANCE, "id", k, parsed);
-                        }
-                    } catch (e) {}
-                }
-            }
-
-            const cloudAttSnap = await getDocs(collection(firestoreDb, STORE_ATTENDANCE));
+            const cloudAttSnap = await firestoreDb.collection(STORE_ATTENDANCE).get();
             const cloudAttIds = new Set();
-            cloudAttSnap.forEach(docSnap => {
+            let pulledNewCloudData = false;
+
+            for (const docSnap of cloudAttSnap.docs) {
                 const d = docSnap.data();
                 if (d && d.data !== undefined) {
                     const idVal = d.id || docSnap.id;
                     cloudAttIds.add(idVal);
-                    localDbPut(STORE_ATTENDANCE, "id", idVal, d.data).catch(() => {});
+                    const existingLocal = localAttMap.get(idVal);
+                    if (!existingLocal || JSON.stringify(existingLocal) !== JSON.stringify(d.data)) {
+                        await localDbPut(STORE_ATTENDANCE, "id", idVal, d.data);
+                        pulledNewCloudData = true;
+                    }
                 }
-            });
+            }
 
+            // Upload all historical local days that are not in Firebase yet
             let uploadedCount = 0;
-            for (const [idVal, dataObj] of localAttendanceMap.entries()) {
-                if (!cloudAttIds.has(idVal)) {
-                    await setDoc(doc(firestoreDb, STORE_ATTENDANCE, idVal), {
+            for (const [idVal, dataObj] of localAttMap.entries()) {
+                if (!cloudAttIds.has(idVal) && dataObj !== undefined) {
+                    await firestoreDb.collection(STORE_ATTENDANCE).doc(idVal).set({
                         id: idVal,
                         data: dataObj,
                         updatedAt: Date.now()
@@ -1139,33 +1086,122 @@
                 }
             }
 
-            const allLocalEmployees = await localDbGetAll(STORE_EMPLOYEES);
-            const cloudEmpSnap = await getDocs(collection(firestoreDb, STORE_EMPLOYEES));
+            // 2. Sync Employees List (Merge Local + Cloud without deleting anything)
+            const localEmpItems = await dbGetAll(STORE_EMPLOYEES);
+            const localEmpMap = new Map();
+            localEmpItems.forEach(item => {
+                if (item && item.country && item.data !== undefined) {
+                    localEmpMap.set(item.country, item.data);
+                }
+            });
+
+            const cloudEmpSnap = await firestoreDb.collection(STORE_EMPLOYEES).get();
             const cloudEmpIds = new Set();
-            cloudEmpSnap.forEach(docSnap => {
+
+            for (const docSnap of cloudEmpSnap.docs) {
                 const d = docSnap.data();
                 if (d && d.data !== undefined) {
                     const cVal = d.country || docSnap.id;
                     cloudEmpIds.add(cVal);
-                    localDbPut(STORE_EMPLOYEES, "country", cVal, d.data).catch(() => {});
+                    const existingLocal = localEmpMap.get(cVal);
+                    if (!existingLocal || JSON.stringify(existingLocal) !== JSON.stringify(d.data)) {
+                        await localDbPut(STORE_EMPLOYEES, "country", cVal, d.data);
+                        pulledNewCloudData = true;
+                    }
                 }
-            });
+            }
 
-            for (const empItem of allLocalEmployees) {
-                if (empItem && empItem.country && empItem.data !== undefined && !cloudEmpIds.has(empItem.country)) {
-                    await setDoc(doc(firestoreDb, STORE_EMPLOYEES, empItem.country), {
-                        country: empItem.country,
-                        data: empItem.data,
+            for (const [cVal, empList] of localEmpMap.entries()) {
+                if (!cloudEmpIds.has(cVal) && Array.isArray(empList) && empList.length > 0) {
+                    await firestoreDb.collection(STORE_EMPLOYEES).doc(cVal).set({
+                        country: cVal,
+                        data: empList,
                         updatedAt: Date.now()
                     }, { merge: true });
+                }
+            }
+
+            if (pulledNewCloudData) {
+                await renderCurrentTable();
+                if (document.getElementById('teamsView').style.display === 'block') {
+                    await loadTeamsTable();
+                }
+                if (document.getElementById('statsView').style.display === 'block') {
+                    await loadBranchStats(activeStatsBranch);
                 }
             }
 
             if (uploadedCount > 0) {
                 showToast(`Synced ${uploadedCount} historical day(s) to Firebase!`);
             }
+
+            // 3. Real-time listeners for live updates from other computers
+            firestoreDb.collection(STORE_ATTENDANCE).onSnapshot(async (snapshot) => {
+                if (isSavingLocally) return;
+                let changedCurrent = false;
+                let changedAny = false;
+                const activeKey = `attendance_${countrySelect.value}_${dateInput.value}`;
+
+                for (const change of snapshot.docChanges()) {
+                    if (change.doc.metadata && change.doc.metadata.hasPendingWrites) continue;
+                    const d = change.doc.data();
+                    if (d && d.data !== undefined) {
+                        const idVal = d.id || change.doc.id;
+                        await localDbPut(STORE_ATTENDANCE, "id", idVal, d.data);
+                        changedAny = true;
+                        if (idVal === activeKey) changedCurrent = true;
+                    }
+                }
+
+                if (changedAny) {
+                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
+                    if (changedCurrent && !isEditingRow) {
+                        await renderCurrentTable();
+                    } else {
+                        updateGlobalCounters();
+                    }
+                    if (document.getElementById('teamsView').style.display === 'block') {
+                        await loadTeamsTable();
+                    }
+                    if (document.getElementById('statsView').style.display === 'block') {
+                        await loadBranchStats(activeStatsBranch);
+                    }
+                }
+            }, (err) => console.warn("Attendance snapshot warning:", err));
+
+            firestoreDb.collection(STORE_EMPLOYEES).onSnapshot(async (snapshot) => {
+                if (isSavingLocally) return;
+                let changedCurrent = false;
+                let changedAny = false;
+
+                for (const change of snapshot.docChanges()) {
+                    if (change.doc.metadata && change.doc.metadata.hasPendingWrites) continue;
+                    const d = change.doc.data();
+                    if (d && d.data !== undefined) {
+                        const cVal = d.country || change.doc.id;
+                        await localDbPut(STORE_EMPLOYEES, "country", cVal, d.data);
+                        changedAny = true;
+                        if (cVal === countrySelect.value) changedCurrent = true;
+                    }
+                }
+
+                if (changedAny) {
+                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
+                    if (changedCurrent && !isEditingRow) {
+                        await renderCurrentTable();
+                    } else {
+                        updateGlobalCounters();
+                    }
+                    if (document.getElementById('teamsView').style.display === 'block') {
+                        await loadTeamsTable();
+                    }
+                    if (document.getElementById('statsView').style.display === 'block') {
+                        await loadBranchStats(activeStatsBranch);
+                    }
+                }
+            }, (err) => console.warn("Employees snapshot warning:", err));
         } catch (e) {
-            console.warn("Background migration check:", e);
+            console.warn("Firebase sync skipped (working with local data):", e);
         }
     }
 
@@ -1620,97 +1656,10 @@
         });
     });
 
+    // Render immediately from local storage/IndexedDB first, then sync with Firebase in background
+    renderCurrentTable();
     dateInput.addEventListener('change', renderCurrentTable);
-
-    /* --- REALTIME FIREBASE LISTENERS FOR ALL COMPUTERS --- */
-    function setupRealtimeFirebaseSync() {
-        try {
-            onSnapshot(collection(firestoreDb, STORE_ATTENDANCE), async (snapshot) => {
-                if (isSavingLocally) return;
-                let needsRefreshCurrent = false;
-                let hasRemoteChanges = false;
-                const activeKey = `attendance_${countrySelect.value}_${dateInput.value}`;
-
-                for (const change of snapshot.docChanges()) {
-                    if (change.doc.metadata && change.doc.metadata.hasPendingWrites) continue;
-                    const d = change.doc.data();
-                    if (d && d.data !== undefined) {
-                        const idVal = d.id || change.doc.id;
-                        await localDbPut(STORE_ATTENDANCE, "id", idVal, d.data);
-                        hasRemoteChanges = true;
-                        if (idVal === activeKey) {
-                            needsRefreshCurrent = true;
-                        }
-                    }
-                }
-
-                if (hasRemoteChanges) {
-                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
-                    if (needsRefreshCurrent && !isEditingRow) {
-                        await renderCurrentTable();
-                    } else {
-                        updateGlobalCounters();
-                    }
-                    if (document.getElementById('teamsView').style.display === 'block') {
-                        await loadTeamsTable();
-                    }
-                    if (document.getElementById('statsView').style.display === 'block') {
-                        await loadBranchStats(activeStatsBranch);
-                    }
-                }
-            });
-
-            onSnapshot(collection(firestoreDb, STORE_EMPLOYEES), async (snapshot) => {
-                if (isSavingLocally) return;
-                let needsRefreshCurrent = false;
-                let hasRemoteChanges = false;
-
-                for (const change of snapshot.docChanges()) {
-                    if (change.doc.metadata && change.doc.metadata.hasPendingWrites) continue;
-                    const d = change.doc.data();
-                    if (d && d.data !== undefined) {
-                        const countryKey = d.country || change.doc.id;
-                        await localDbPut(STORE_EMPLOYEES, "country", countryKey, d.data);
-                        hasRemoteChanges = true;
-                        if (countryKey === countrySelect.value) {
-                            needsRefreshCurrent = true;
-                        }
-                    }
-                }
-
-                if (hasRemoteChanges) {
-                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
-                    if (needsRefreshCurrent && !isEditingRow) {
-                        await renderCurrentTable();
-                    } else {
-                        updateGlobalCounters();
-                    }
-                    if (document.getElementById('teamsView').style.display === 'block') {
-                        await loadTeamsTable();
-                    }
-                    if (document.getElementById('statsView').style.display === 'block') {
-                        await loadBranchStats(activeStatsBranch);
-                    }
-                }
-            });
-        } catch (e) {
-            console.warn("Realtime listener warning:", e);
-        }
-    }
-
-    async function initializeApp() {
-        await openDatabase();
-        // Render immediately using existing local data first
-        await renderCurrentTable();
-        // Migrate all existing 2-month local history to Firebase without overwriting anything
-        await migrateLocalHistoryToFirebase();
-        // Refresh with merged Firebase + local records
-        await renderCurrentTable();
-        // Enable live sync across all computers
-        setupRealtimeFirebaseSync();
-    }
-
-    initializeApp();
+    setTimeout(() => { syncWithFirebase(); }, 300);
 
     function updateSelectColor(selectElement) {
         if (!selectElement) return;
@@ -1811,13 +1760,12 @@
             th.className = headerClass;
         });
 
-        tableBody.innerHTML = '';
-
         const storageKey = `attendance_${country}_${selectedDate}`;
         const savedData = await dbGet(STORE_ATTENDANCE, storageKey) || {};
-
         const employees = await getCountryEmployees(country);
         const countryClass = countryClassMap[country] || '';
+
+        tableBody.innerHTML = '';
 
         employees.forEach((emp, index) => {
             const row = document.createElement('tr');
@@ -1845,24 +1793,24 @@
             row.innerHTML = `
                 <td class="${countryClass}">
                     <i class="fa-solid fa-bars drag-handle" title="Drag to swap agent" onmousedown="enableDragRow(${index})"></i>
-                    <span id="label-${index}-name"><strong>${emp.name}</strong></span>
-                    <input type="text" id="input-${index}-name" class="edit-input" value="${emp.name}" style="display:none;">
+                    <span id="label-${index}-name"><strong>${escapeHtml(emp.name)}</strong></span>
+                    <input type="text" id="input-${index}-name" class="edit-input" value="${escapeHtml(emp.name)}" style="display:none;">
                 </td>
                 <td class="${teamClass}" id="cell-${index}-team">
-                    <span id="label-${index}-team">${emp.team}</span>
-                    <input type="text" id="input-${index}-team" class="edit-input" value="${emp.team}" style="display:none;">
+                    <span id="label-${index}-team">${escapeHtml(emp.team)}</span>
+                    <input type="text" id="input-${index}-team" class="edit-input" value="${escapeHtml(emp.team)}" style="display:none;">
                 </td>
                 <td class="${supClass}" id="cell-${index}-sup">
-                    <span id="label-${index}-sup">${emp.supervisor}</span>
-                    <input type="text" id="input-${index}-sup" class="edit-input" value="${emp.supervisor}" style="display:none;">
+                    <span id="label-${index}-sup">${escapeHtml(emp.supervisor)}</span>
+                    <input type="text" id="input-${index}-sup" class="edit-input" value="${escapeHtml(emp.supervisor)}" style="display:none;">
                 </td>
                 <td class="time-cell">
-                    <span id="label-${index}-in">${emp.checkIn}</span>
-                    <input type="text" id="input-${index}-in" class="edit-input" value="${emp.checkIn}" style="display:none; text-align:center;">
+                    <span id="label-${index}-in">${escapeHtml(emp.checkIn)}</span>
+                    <input type="text" id="input-${index}-in" class="edit-input" value="${escapeHtml(emp.checkIn)}" style="display:none; text-align:center;">
                 </td>
                 <td class="time-cell">
-                    <span id="label-${index}-out">${emp.checkOut}</span>
-                    <input type="text" id="input-${index}-out" class="edit-input" value="${emp.checkOut}" style="display:none; text-align:center;">
+                    <span id="label-${index}-out">${escapeHtml(emp.checkOut)}</span>
+                    <input type="text" id="input-${index}-out" class="edit-input" value="${escapeHtml(emp.checkOut)}" style="display:none; text-align:center;">
                 </td>
                 <td class="status-cell">
                     <select class="cell-select" id="status_${index}" onchange="updateSelectColor(this)">
@@ -1947,10 +1895,10 @@
             currentAttendanceArray[fromIdx] = currentAttendanceArray[toIdx];
             currentAttendanceArray[toIdx] = tempAtt;
 
-            // 4. Save swapped employee catalog to local & Firebase
+            // 4. Save swapped employee catalog correctly
             await saveCountryEmployees(country, employees);
 
-            // 5. Save swapped daily records to local & Firebase
+            // 5. Save swapped daily records
             const updatedDayData = {};
             currentAttendanceArray.forEach((rec, idx) => {
                 updatedDayData[idx] = rec;
@@ -1961,7 +1909,7 @@
 
             // 6. Refresh view
             await renderCurrentTable();
-            showToast("Agents swapped and synced!");
+            showToast("Agents swapped successfully!");
         }
 
         draggedIndex = null;
@@ -2016,7 +1964,7 @@
 
         await saveCountryEmployees(country, employees);
         renderCurrentTable();
-        showToast("Agent information updated and synced!");
+        showToast("Agent information updated!");
     }
 
     function deleteAgent(index) {
@@ -2047,7 +1995,7 @@
                 await dbPut(STORE_ATTENDANCE, "id", storageKey, newDayData);
 
                 renderCurrentTable();
-                showToast("Agent deleted and synced.");
+                showToast("Agent deleted successfully.");
             }
         });
     }
@@ -2106,12 +2054,14 @@
             await dbPut(STORE_ATTENDANCE, "id", storageKey, dataToSave);
             showToast(`${country} attendance saved for ${selectedDate}!`);
             updateCounters();
+            // Keep Teams % summary synchronized as attendance is saved during the day
             if (document.getElementById('teamsView').style.display === 'block') {
                 await loadTeamsTable();
             }
         } catch (error) {
-            console.error("Error saving to Firebase:", error);
-            alert("Saved locally, but Firebase sync failed: " + error.message + "\n\nCheck that Firestore Database is enabled in Firebase Console with read/write rules allowed.");
+            console.error("Error saving:", error);
+            showToast(`${country} attendance saved locally for ${selectedDate}!`);
+            alert("Saved locally on your computer, but Firebase sync had an issue: " + error.message + "\n\nPlease make sure Firestore Database is enabled in Firebase Console with read/write rules allowed.");
         }
     }
 
@@ -2219,7 +2169,6 @@
 
     const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
     let activeStatsBranch = countrySelect.value || "Guatemala";
-    window.activeStatsBranch = activeStatsBranch;
 
     /* --- TEAMS % VIEW & ENGINE (BY DEPARTMENT - COUNTRY) --- */
     function showTeamsView() {
@@ -2564,7 +2513,6 @@
         document.getElementById('teamsView').style.display = 'none';
         document.getElementById('statsView').style.display = 'block';
         activeStatsBranch = countrySelect.value;
-        window.activeStatsBranch = activeStatsBranch;
         renderBranchTabs();
         loadBranchStats(activeStatsBranch);
     }
@@ -2586,7 +2534,6 @@
             btn.innerText = branch;
             btn.onclick = () => {
                 activeStatsBranch = branch;
-                window.activeStatsBranch = activeStatsBranch;
                 renderBranchTabs();
                 loadBranchStats(branch);
             };
@@ -2596,7 +2543,6 @@
 
     /* --- MONTHLY STATISTICS ENGINE --- */
     async function loadBranchStats(branch) {
-        branch = branch || activeStatsBranch;
         const tbody = document.getElementById('statsTableBody');
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Loading statistics...</td></tr>';
 
@@ -2611,7 +2557,7 @@
 
         const offenderMap = {};
 
-        // 1. Fetch records from Firebase + IndexedDB + localStorage
+        // 1. Fetch records from IndexedDB + localStorage (already synced with Firebase)
         const allRecords = await dbGetAll(STORE_ATTENDANCE);
         const combinedDataMap = new Map();
 
@@ -2692,24 +2638,6 @@
             tbody.appendChild(row);
         });
     }
-
-    /* --- EXPOSE HANDLERS GLOBALLY FOR INLINE HTML EVENTS --- */
-    window.toggleTheme = toggleTheme;
-    window.saveData = saveData;
-    window.exportToExcel = exportToExcel;
-    window.showTeamsView = showTeamsView;
-    window.showStatsView = showStatsView;
-    window.showMainView = showMainView;
-    window.addAgent = addAgent;
-    window.loadTeamsTable = loadTeamsTable;
-    window.copyTeamsTable = copyTeamsTable;
-    window.loadBranchStats = loadBranchStats;
-    window.closeAuthModal = closeAuthModal;
-    window.enableDragRow = enableDragRow;
-    window.updateSelectColor = updateSelectColor;
-    window.enableRowEdit = enableRowEdit;
-    window.saveRowEdit = saveRowEdit;
-    window.deleteAgent = deleteAgent;
 </script>
 
 </body>
