@@ -499,8 +499,6 @@
         body.light-mode .pct-alert { background-color: rgba(220, 53, 69, 0.2); color: #842029; }
         .pct-warn { background-color: rgba(255, 193, 7, 0.25); color: #ffda6a; }
         body.light-mode .pct-warn { background-color: rgba(255, 193, 7, 0.35); color: #664d03; }
-        .pct-info { background-color: rgba(0, 176, 255, 0.25); color: #6edff6; }
-        body.light-mode .pct-info { background-color: rgba(0, 176, 255, 0.25); color: #055160; }
 
         .absence-detail-item {
             display: block;
@@ -726,17 +724,17 @@
                 <div class="stat-title">Total Agents In</div>
                 <div class="stat-value" id="teamsTotalAgentsIn">0</div>
             </div>
-            <div class="stat-card not-present">
-                <div class="stat-title">Global % of Unexpected Absences</div>
-                <div class="stat-value" id="teamsGlobalUnexpectedPct">0.0%</div>
-            </div>
             <div class="stat-card lates">
                 <div class="stat-title">Global % of Lates</div>
                 <div class="stat-value" id="teamsGlobalLatesPct">0.0%</div>
             </div>
+            <div class="stat-card not-present">
+                <div class="stat-title">Global % of Unexpected Absences</div>
+                <div class="stat-value" id="teamsGlobalUnexpectedPct">0.0%</div>
+            </div>
             <div class="stat-card not-started">
-                <div class="stat-title">Global % of Shift Not Started</div>
-                <div class="stat-value" id="teamsGlobalNotStartedPct">0.0%</div>
+                <div class="stat-title">Total Agents with Shift Not Started</div>
+                <div class="stat-value" id="teamsGlobalNotStarted">0</div>
             </div>
         </div>
 
@@ -746,10 +744,10 @@
                     <tr>
                         <th class="header-teams" style="text-align: left !important;">DEPARTMENT - COUNTRY</th>
                         <th class="header-teams">NUMBER OF AGENTS IN</th>
-                        <th class="header-teams">% OF UNEXPECTED ABSENCES</th>
                         <th class="header-teams">% OF LATES</th>
-                        <th class="header-teams">% OF AGENTS WITH THE SHIFT NOT STARTED</th>
+                        <th class="header-teams">% OF UNEXPECTED ABSENCES</th>
                         <th class="header-teams" style="min-width: 260px;">UNEXPECTED ABSENCES (AGENT & REASON)</th>
+                        <th class="header-teams">AGENTS WITH SHIFT NOT STARTED</th>
                     </tr>
                 </thead>
                 <tbody id="teamsTableBody">
@@ -1950,11 +1948,9 @@
 
             deptMap.forEach((stats) => {
                 const startedScheduledCount = stats.agentsIn + stats.unexpectedCount;
-                const totalActiveRosterToday = stats.agentsIn + stats.unexpectedCount + stats.notStartedCount;
 
                 const unexpectedPct = startedScheduledCount > 0 ? ((stats.unexpectedCount / startedScheduledCount) * 100) : 0;
                 const latesPct = startedScheduledCount > 0 ? ((stats.latesCount / startedScheduledCount) * 100) : 0;
-                const notStartedPct = totalActiveRosterToday > 0 ? ((stats.notStartedCount / totalActiveRosterToday) * 100) : 0;
 
                 grandTotalAgentsIn += stats.agentsIn;
                 grandTotalUnexpected += stats.unexpectedCount;
@@ -1964,26 +1960,22 @@
                 teamRows.push({
                     ...stats,
                     startedScheduledCount,
-                    totalActiveRosterToday,
                     unexpectedPct,
-                    latesPct,
-                    notStartedPct
+                    latesPct
                 });
             });
         }
 
         // Update top summary KPI cards
         const grandStartedScheduled = grandTotalAgentsIn + grandTotalUnexpected;
-        const grandTotalRoster = grandTotalAgentsIn + grandTotalUnexpected + grandTotalNotStarted;
 
         const globalUnexpectedPct = grandStartedScheduled > 0 ? ((grandTotalUnexpected / grandStartedScheduled) * 100).toFixed(1) : '0.0';
         const globalLatesPct = grandStartedScheduled > 0 ? ((grandTotalLates / grandStartedScheduled) * 100).toFixed(1) : '0.0';
-        const globalNotStartedPct = grandTotalRoster > 0 ? ((grandTotalNotStarted / grandTotalRoster) * 100).toFixed(1) : '0.0';
 
         document.getElementById('teamsTotalAgentsIn').innerText = grandTotalAgentsIn;
-        document.getElementById('teamsGlobalUnexpectedPct').innerText = `${globalUnexpectedPct}%`;
         document.getElementById('teamsGlobalLatesPct').innerText = `${globalLatesPct}%`;
-        document.getElementById('teamsGlobalNotStartedPct').innerText = `${globalNotStartedPct}%`;
+        document.getElementById('teamsGlobalUnexpectedPct').innerText = `${globalUnexpectedPct}%`;
+        document.getElementById('teamsGlobalNotStarted').innerText = grandTotalNotStarted;
 
         if (teamRows.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #b0bec5;">No teams found for the selected filter.</td></tr>';
@@ -1996,7 +1988,6 @@
             const deptCountryClass = deptCountryClassMap[item.country] || '';
             const unexpBadgeClass = item.unexpectedPct > 0 ? 'pct-badge pct-alert' : 'pct-badge pct-zero';
             const latesBadgeClass = item.latesPct > 0 ? 'pct-badge pct-warn' : 'pct-badge pct-zero';
-            const notStartedBadgeClass = item.notStartedPct > 0 ? 'pct-badge pct-info' : 'pct-badge pct-zero';
 
             let absenceDetailsHtml = '<span style="opacity: 0.6; font-style: italic;">None</span>';
             if (item.unexpectedDetails.length > 0) {
@@ -2011,16 +2002,16 @@
             row.innerHTML = `
                 <td class="${deptCountryClass}">${item.label}</td>
                 <td style="text-align: center; font-weight: bold; font-size: 1.05rem;">${item.agentsIn}</td>
-                <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.startedScheduledCount} started/scheduled">
-                    <span class="${unexpBadgeClass}">${item.unexpectedPct.toFixed(1)}%</span>
-                </td>
                 <td style="text-align: center;" title="${item.latesCount} late(s) out of ${item.startedScheduledCount} started/scheduled">
                     <span class="${latesBadgeClass}">${item.latesPct.toFixed(1)}%</span>
                 </td>
-                <td style="text-align: center;" title="${item.notStartedCount} agent(s) in N/A out of ${item.totalActiveRosterToday} scheduled today">
-                    <span class="${notStartedBadgeClass}">${item.notStartedPct.toFixed(1)}%</span>
+                <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.startedScheduledCount} started/scheduled">
+                    <span class="${unexpBadgeClass}">${item.unexpectedPct.toFixed(1)}%</span>
                 </td>
                 <td>${absenceDetailsHtml}</td>
+                <td style="text-align: center; font-weight: bold; font-size: 1.05rem;" title="${item.notStartedCount} agent(s) with status N/A">
+                    ${item.notStartedCount}
+                </td>
             `;
             tbody.appendChild(row);
         });
