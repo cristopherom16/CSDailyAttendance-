@@ -1957,12 +1957,14 @@
                 grandTotalLates += stats.latesCount;
                 grandTotalNotStarted += stats.notStartedCount;
 
-                teamRows.push({
-                    ...stats,
-                    startedScheduledCount,
-                    unexpectedPct,
-                    latesPct
-                });
+                if (stats.agentsIn > 0) {
+                    teamRows.push({
+                        ...stats,
+                        startedScheduledCount,
+                        unexpectedPct,
+                        latesPct
+                    });
+                }
             });
         }
 
@@ -1978,7 +1980,7 @@
         document.getElementById('teamsGlobalNotStarted').innerText = grandTotalNotStarted;
 
         if (teamRows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #b0bec5;">No teams found for the selected filter.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #b0bec5;">No teams with agents in found for the selected filter.</td></tr>';
             return;
         }
 
