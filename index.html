@@ -14,6 +14,7 @@
             --success-color: #198754;
             --excel-color: #107c41;
             --teams-color: #0288d1;
+            --copy-color: #d97706;
             --warning-color: #ffc107;
             --danger-color: #dc3545;
             --global-color: #6f42c1;
@@ -171,6 +172,8 @@
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-teams { background-color: var(--teams-color); }
         .btn-teams:hover { background-color: #0277bd; }
+        .btn-copy { background-color: var(--copy-color); color: #ffffff; }
+        .btn-copy:hover { background-color: #b45309; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
         .btn-back { background-color: #6c757d; }
@@ -499,6 +502,8 @@
         body.light-mode .pct-alert { background-color: rgba(220, 53, 69, 0.2); color: #842029; }
         .pct-warn { background-color: rgba(255, 193, 7, 0.25); color: #ffda6a; }
         body.light-mode .pct-warn { background-color: rgba(255, 193, 7, 0.35); color: #664d03; }
+        .pct-expected { background-color: rgba(13, 110, 253, 0.25); color: #6ea8fe; }
+        body.light-mode .pct-expected { background-color: rgba(13, 110, 253, 0.2); color: #084298; }
 
         .absence-detail-item {
             display: block;
@@ -512,6 +517,21 @@
         }
         body.light-mode .absence-detail-item {
             background-color: rgba(220, 53, 69, 0.15);
+            color: #001f3f;
+        }
+
+        .expected-detail-item {
+            display: block;
+            padding: 4px 8px;
+            margin: 3px 0;
+            border-radius: 4px;
+            background-color: rgba(13, 110, 253, 0.18);
+            border-left: 3px solid #0d6efd;
+            font-size: 0.85rem;
+            line-height: 1.3;
+        }
+        body.light-mode .expected-detail-item {
+            background-color: rgba(13, 110, 253, 0.15);
             color: #001f3f;
         }
 
@@ -715,6 +735,7 @@
                     </select>
                 </div>
 
+                <button class="btn btn-copy" id="copyTeamsTableBtn" onclick="copyTeamsTable()"><i class="fa-solid fa-copy"></i> Copy Table</button>
                 <button class="btn btn-back" onclick="showMainView()"><i class="fa-solid fa-arrow-left"></i> Back to Attendance Table</button>
             </div>
         </div>
@@ -732,6 +753,10 @@
                 <div class="stat-title">Global % of Unexpected Absences</div>
                 <div class="stat-value" id="teamsGlobalUnexpectedPct">0.0%</div>
             </div>
+            <div class="stat-card expected">
+                <div class="stat-title">Global % of Expected Absences</div>
+                <div class="stat-value" id="teamsGlobalExpectedPct">0.0%</div>
+            </div>
             <div class="stat-card not-started">
                 <div class="stat-title">Total Agents with Shift Not Started</div>
                 <div class="stat-value" id="teamsGlobalNotStarted">0</div>
@@ -739,14 +764,16 @@
         </div>
 
         <div class="table-responsive">
-            <table>
+            <table id="teamsSummaryTable">
                 <thead>
                     <tr>
                         <th class="header-teams" style="text-align: left !important;">DEPARTMENT - COUNTRY</th>
                         <th class="header-teams">NUMBER OF AGENTS IN</th>
                         <th class="header-teams">% OF LATES</th>
                         <th class="header-teams">% OF UNEXPECTED ABSENCES</th>
-                        <th class="header-teams" style="min-width: 260px;">UNEXPECTED ABSENCES (AGENT & REASON)</th>
+                        <th class="header-teams" style="min-width: 240px;">UNEXPECTED ABSENCES (AGENT & REASON)</th>
+                        <th class="header-teams">% OF EXPECTED ABSENCES</th>
+                        <th class="header-teams" style="min-width: 240px;">EXPECTED ABSENCES (AGENT & REASON)</th>
                         <th class="header-teams">AGENTS WITH SHIFT NOT STARTED</th>
                     </tr>
                 </thead>
@@ -1070,6 +1097,15 @@
         "Jamaica": "dept-country-jamaica"
     };
 
+    const deptCountryInlineStyleMap = {
+        "Guatemala": "background-color: #81d4fa; color: #000000;",
+        "Mexico": "background-color: #1b5e20; color: #ffffff;",
+        "Panama": "background-color: #cc0000; color: #ffffff;",
+        "Colombia": "background-color: #ff6d00; color: #000000;",
+        "Philippines": "background-color: #ce93d8; color: #000000;",
+        "Jamaica": "background-color: #ffd600; color: #000000;"
+    };
+
     async function getCountryEmployees(country) {
         const stored = await dbGet(STORE_EMPLOYEES, country);
         if (stored && Array.isArray(stored) && stored.length > 0) {
@@ -1268,6 +1304,7 @@
     let previousCountry = countrySelect.value;
     let draggedIndex = null;
     let authCallback = null;
+    let currentTeamsRows = [];
 
     const todayDate = new Date();
     const today = todayDate.toISOString().split('T')[0];
@@ -1881,7 +1918,7 @@
 
     async function loadTeamsTable() {
         const tbody = document.getElementById('teamsTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
 
         const selectedDate = document.getElementById('teamsDateSelect').value || dateInput.value;
         const countryFilter = document.getElementById('teamsCountryFilter').value;
@@ -1893,6 +1930,7 @@
         const teamRows = [];
         let grandTotalAgentsIn = 0;
         let grandTotalUnexpected = 0;
+        let grandTotalExpected = 0;
         let grandTotalLates = 0;
         let grandTotalNotStarted = 0;
 
@@ -1916,9 +1954,11 @@
                         rawTeam: rawTeam,
                         agentsIn: 0,
                         unexpectedCount: 0,
+                        expectedCount: 0,
                         latesCount: 0,
                         notStartedCount: 0,
-                        unexpectedDetails: []
+                        unexpectedDetails: [],
+                        expectedDetails: []
                     });
                 }
 
@@ -1938,6 +1978,14 @@
                         comment: commentVal
                     });
                 }
+                if (expectedAbsences.includes(statusVal)) {
+                    entry.expectedCount += 1;
+                    entry.expectedDetails.push({
+                        name: emp.name,
+                        reason: statusVal,
+                        comment: commentVal
+                    });
+                }
                 if (statusVal === 'LATE' || statusVal === 'LATE JUSTIFIED (BACK UP DOC.)') {
                     entry.latesCount += 1;
                 }
@@ -1948,12 +1996,15 @@
 
             deptMap.forEach((stats) => {
                 const startedScheduledCount = stats.agentsIn + stats.unexpectedCount;
+                const totalAccountedCount = stats.agentsIn + stats.unexpectedCount + stats.expectedCount;
 
                 const unexpectedPct = startedScheduledCount > 0 ? ((stats.unexpectedCount / startedScheduledCount) * 100) : 0;
                 const latesPct = startedScheduledCount > 0 ? ((stats.latesCount / startedScheduledCount) * 100) : 0;
+                const expectedPct = totalAccountedCount > 0 ? ((stats.expectedCount / totalAccountedCount) * 100) : 0;
 
                 grandTotalAgentsIn += stats.agentsIn;
                 grandTotalUnexpected += stats.unexpectedCount;
+                grandTotalExpected += stats.expectedCount;
                 grandTotalLates += stats.latesCount;
                 grandTotalNotStarted += stats.notStartedCount;
 
@@ -1961,8 +2012,10 @@
                     teamRows.push({
                         ...stats,
                         startedScheduledCount,
+                        totalAccountedCount,
                         unexpectedPct,
-                        latesPct
+                        latesPct,
+                        expectedPct
                     });
                 }
             });
@@ -1970,17 +2023,22 @@
 
         // Update top summary KPI cards
         const grandStartedScheduled = grandTotalAgentsIn + grandTotalUnexpected;
+        const grandTotalAccounted = grandTotalAgentsIn + grandTotalUnexpected + grandTotalExpected;
 
         const globalUnexpectedPct = grandStartedScheduled > 0 ? ((grandTotalUnexpected / grandStartedScheduled) * 100).toFixed(1) : '0.0';
         const globalLatesPct = grandStartedScheduled > 0 ? ((grandTotalLates / grandStartedScheduled) * 100).toFixed(1) : '0.0';
+        const globalExpectedPct = grandTotalAccounted > 0 ? ((grandTotalExpected / grandTotalAccounted) * 100).toFixed(1) : '0.0';
 
         document.getElementById('teamsTotalAgentsIn').innerText = grandTotalAgentsIn;
         document.getElementById('teamsGlobalLatesPct').innerText = `${globalLatesPct}%`;
         document.getElementById('teamsGlobalUnexpectedPct').innerText = `${globalUnexpectedPct}%`;
+        document.getElementById('teamsGlobalExpectedPct').innerText = `${globalExpectedPct}%`;
         document.getElementById('teamsGlobalNotStarted').innerText = grandTotalNotStarted;
 
+        currentTeamsRows = teamRows;
+
         if (teamRows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #b0bec5;">No teams with agents in found for the selected filter.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #b0bec5;">No teams with agents in found for the selected filter.</td></tr>';
             return;
         }
 
@@ -1990,14 +2048,25 @@
             const deptCountryClass = deptCountryClassMap[item.country] || '';
             const unexpBadgeClass = item.unexpectedPct > 0 ? 'pct-badge pct-alert' : 'pct-badge pct-zero';
             const latesBadgeClass = item.latesPct > 0 ? 'pct-badge pct-warn' : 'pct-badge pct-zero';
+            const expBadgeClass = item.expectedPct > 0 ? 'pct-badge pct-expected' : 'pct-badge pct-zero';
 
-            let absenceDetailsHtml = '<span style="opacity: 0.6; font-style: italic;">None</span>';
+            let unexpectedDetailsHtml = '<span style="opacity: 0.6; font-style: italic;">None</span>';
             if (item.unexpectedDetails.length > 0) {
-                absenceDetailsHtml = item.unexpectedDetails.map(d => {
+                unexpectedDetailsHtml = item.unexpectedDetails.map(d => {
                     const safeName = escapeHtml(d.name);
                     const safeReason = escapeHtml(d.reason);
                     const safeComment = d.comment ? ` (${escapeHtml(d.comment)})` : '';
                     return `<div class="absence-detail-item"><strong>${safeName}</strong> &mdash; <span>${safeReason}${safeComment}</span></div>`;
+                }).join('');
+            }
+
+            let expectedDetailsHtml = '<span style="opacity: 0.6; font-style: italic;">None</span>';
+            if (item.expectedDetails.length > 0) {
+                expectedDetailsHtml = item.expectedDetails.map(d => {
+                    const safeName = escapeHtml(d.name);
+                    const safeReason = escapeHtml(d.reason);
+                    const safeComment = d.comment ? ` (${escapeHtml(d.comment)})` : '';
+                    return `<div class="expected-detail-item"><strong>${safeName}</strong> &mdash; <span>${safeReason}${safeComment}</span></div>`;
                 }).join('');
             }
 
@@ -2010,13 +2079,167 @@
                 <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.startedScheduledCount} started/scheduled">
                     <span class="${unexpBadgeClass}">${item.unexpectedPct.toFixed(1)}%</span>
                 </td>
-                <td>${absenceDetailsHtml}</td>
+                <td>${unexpectedDetailsHtml}</td>
+                <td style="text-align: center;" title="${item.expectedCount} expected absence(s) out of ${item.totalAccountedCount} accounted">
+                    <span class="${expBadgeClass}">${item.expectedPct.toFixed(1)}%</span>
+                </td>
+                <td>${expectedDetailsHtml}</td>
                 <td style="text-align: center; font-weight: bold; font-size: 1.05rem;" title="${item.notStartedCount} agent(s) with status N/A">
                     ${item.notStartedCount}
                 </td>
             `;
             tbody.appendChild(row);
         });
+    }
+
+    /* --- COPY TEAMS TABLE WITH CLEAN FORMATTING (HTML + PLAIN FALLBACK) --- */
+    async function copyTeamsTable() {
+        if (!currentTeamsRows || currentTeamsRows.length === 0) {
+            alert("There are no rows to copy for the selected date/filter.");
+            return;
+        }
+
+        const headers = [
+            "DEPARTMENT - COUNTRY",
+            "NUMBER OF AGENTS IN",
+            "% OF LATES",
+            "% OF UNEXPECTED ABSENCES",
+            "UNEXPECTED ABSENCES (AGENT & REASON)",
+            "% OF EXPECTED ABSENCES",
+            "EXPECTED ABSENCES (AGENT & REASON)",
+            "AGENTS WITH SHIFT NOT STARTED"
+        ];
+
+        const baseCellStyle = "border: 1px solid #8c8c8c; padding: 7px 10px; font-family: Calibri, Arial, sans-serif; font-size: 11pt; vertical-align: middle;";
+        const headerCellStyle = "border: 1px solid #01579b; background-color: #0277bd; color: #ffffff; font-weight: bold; text-align: center; padding: 8px 10px; font-family: Calibri, Arial, sans-serif; font-size: 11pt;";
+
+        let htmlRows = `<tr>`;
+        headers.forEach((h, i) => {
+            const align = i === 0 ? "text-align: left;" : "text-align: center;";
+            htmlRows += `<th style="${headerCellStyle} ${align}">${escapeHtml(h)}</th>`;
+        });
+        htmlRows += `</tr>`;
+
+        let plainRows = [headers.join("\t")];
+
+        currentTeamsRows.forEach((item, rowIdx) => {
+            const rowBg = rowIdx % 2 === 0 ? "#ffffff" : "#f7f9fc";
+            const deptInlineStyle = deptCountryInlineStyleMap[item.country] || "background-color: #e2e8f0; color: #000000;";
+
+            const latesText = `${item.latesPct.toFixed(1)}%`;
+            const unexpText = `${item.unexpectedPct.toFixed(1)}%`;
+            const expText = `${item.expectedPct.toFixed(1)}%`;
+
+            const latesStyle = item.latesPct > 0 ? "color: #b45309; font-weight: bold;" : "color: #15803d; font-weight: bold;";
+            const unexpStyle = item.unexpectedPct > 0 ? "color: #b91c1c; font-weight: bold;" : "color: #15803d; font-weight: bold;";
+            const expStyle = item.expectedPct > 0 ? "color: #1d4ed8; font-weight: bold;" : "color: #15803d; font-weight: bold;";
+
+            const unexpHtml = item.unexpectedDetails.length > 0
+                ? item.unexpectedDetails.map(d => {
+                    const c = d.comment ? ` (${escapeHtml(d.comment)})` : '';
+                    return `<strong>${escapeHtml(d.name)}</strong> - ${escapeHtml(d.reason)}${c}`;
+                }).join("<br>")
+                : `<span style="color: #6b7280;">None</span>`;
+
+            const expHtml = item.expectedDetails.length > 0
+                ? item.expectedDetails.map(d => {
+                    const c = d.comment ? ` (${escapeHtml(d.comment)})` : '';
+                    return `<strong>${escapeHtml(d.name)}</strong> - ${escapeHtml(d.reason)}${c}`;
+                }).join("<br>")
+                : `<span style="color: #6b7280;">None</span>`;
+
+            const unexpPlain = item.unexpectedDetails.length > 0
+                ? item.unexpectedDetails.map(d => `${d.name} - ${d.reason}${d.comment ? ` (${d.comment})` : ''}`).join(" | ")
+                : "None";
+
+            const expPlain = item.expectedDetails.length > 0
+                ? item.expectedDetails.map(d => `${d.name} - ${d.reason}${d.comment ? ` (${d.comment})` : ''}`).join(" | ")
+                : "None";
+
+            htmlRows += `
+                <tr>
+                    <td style="${baseCellStyle} ${deptInlineStyle} font-weight: bold; text-align: left;">${escapeHtml(item.label)}</td>
+                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: center; font-weight: bold;">${item.agentsIn}</td>
+                    <td style="${baseCellStyle} background-color: ${rowBg}; text-align: center; ${latesStyle}">${latesText}</td>
+                    <td style="${baseCellStyle} background-color: ${rowBg}; text-align: center; ${unexpStyle}">${unexpText}</td>
+                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: left;">${unexpHtml}</td>
+                    <td style="${baseCellStyle} background-color: ${rowBg}; text-align: center; ${expStyle}">${expText}</td>
+                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: left;">${expHtml}</td>
+                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: center; font-weight: bold;">${item.notStartedCount}</td>
+                </tr>
+            `;
+
+            plainRows.push([
+                item.label,
+                item.agentsIn,
+                latesText,
+                unexpText,
+                unexpPlain,
+                expText,
+                expPlain,
+                item.notStartedCount
+            ].join("\t"));
+        });
+
+        const fullHtmlTable = `<table border="1" cellspacing="0" cellpadding="6" style="border-collapse: collapse; border: 1px solid #8c8c8c; font-family: Calibri, Arial, sans-serif; font-size: 11pt;">${htmlRows}</table>`;
+        const fullPlainText = plainRows.join("\n");
+
+        let copied = false;
+
+        // 1. Modern Clipboard API with rich HTML + Plain Text
+        if (navigator.clipboard && window.ClipboardItem) {
+            try {
+                const htmlBlob = new Blob([fullHtmlTable], { type: "text/html" });
+                const textBlob = new Blob([fullPlainText], { type: "text/plain" });
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        "text/html": htmlBlob,
+                        "text/plain": textBlob
+                    })
+                ]);
+                copied = true;
+            } catch (err) {
+                copied = false;
+            }
+        }
+
+        // 2. Reliable fallback (works even on local file:// origins)
+        if (!copied) {
+            const tempContainer = document.createElement("div");
+            tempContainer.style.position = "fixed";
+            tempContainer.style.left = "-9999px";
+            tempContainer.style.top = "0";
+            tempContainer.style.backgroundColor = "#ffffff";
+            tempContainer.innerHTML = fullHtmlTable;
+            document.body.appendChild(tempContainer);
+
+            const range = document.createRange();
+            range.selectNodeContents(tempContainer);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            try {
+                copied = document.execCommand("copy");
+            } catch (e) {
+                copied = false;
+            }
+
+            selection.removeAllRanges();
+            document.body.removeChild(tempContainer);
+        }
+
+        if (copied) {
+            showToast("Table copied with formatting! Ready to paste.");
+            const btn = document.getElementById("copyTeamsTableBtn");
+            if (btn) {
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> Copied!`;
+                setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+            }
+        } else {
+            alert("Could not copy the table automatically. Please check browser permissions.");
+        }
     }
 
     function showStatsView() {
