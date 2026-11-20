@@ -851,46 +851,15 @@
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-analytics.js";
-    import {
-        getFirestore,
-        doc,
-        getDoc,
-        setDoc,
-        getDocs,
-        collection,
-        onSnapshot
-    } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyB3v43flyyqaBtq7vtb7OUA-Crx9Wn9UnE",
-        authDomain: "customersupportattendance.firebaseapp.com",
-        projectId: "customersupportattendance",
-        storageBucket: "customersupportattendance.firebasestorage.app",
-        messagingSenderId: "103662288179",
-        appId: "1:103662288179:web:65311646adc127b3fe5246",
-        measurementId: "G-DBKTZT3C4X"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    try {
-        getAnalytics(app);
-    } catch (e) {
-        console.warn("Analytics skipped:", e);
-    }
-    const firestoreDb = getFirestore(app);
-
+<script>
     const MANAGEMENT_PASSWORD = "management2026!";
 
-    /* --- LOCAL CACHE + FIREBASE FIRESTORE ENGINE --- */
+    /* --- UNLIMITED INDEXEDDB ENGINE --- */
     const DB_NAME = "AttendanceSystemDB";
     const DB_VERSION = 2;
     const STORE_ATTENDANCE = "daily_attendance";
     const STORE_EMPLOYEES = "employees_store";
     let dbInstance = null;
-    let isSavingLocally = false;
 
     async function requestStoragePersistence() {
         if (navigator.storage && navigator.storage.persist) {
@@ -923,7 +892,7 @@
         });
     }
 
-    async function localDbPut(storeName, keyField, key, value) {
+    async function dbPut(storeName, keyField, key, value) {
         const db = await openDatabase();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(storeName, "readwrite");
@@ -937,7 +906,7 @@
         });
     }
 
-    async function localDbGet(storeName, key) {
+    async function dbGet(storeName, key) {
         const db = await openDatabase();
         return new Promise((resolve) => {
             const tx = db.transaction(storeName, "readonly");
@@ -951,7 +920,7 @@
                         const legacyKey = storeName === STORE_EMPLOYEES ? `CS_EMPLOYEES_LIST_${key}` : key;
                         const legacy = localStorage.getItem(legacyKey);
                         resolve(legacy ? JSON.parse(legacy) : null);
-                    } catch (e) {
+                    } catch(e) {
                         resolve(null);
                     }
                 }
@@ -960,7 +929,7 @@
         });
     }
 
-    async function localDbGetAll(storeName) {
+    async function dbGetAll(storeName) {
         const db = await openDatabase();
         return new Promise((resolve) => {
             const tx = db.transaction(storeName, "readonly");
@@ -969,66 +938,6 @@
             req.onsuccess = () => resolve(req.result || []);
             req.onerror = () => resolve([]);
         });
-    }
-
-    async function dbPut(storeName, keyField, key, value) {
-        await localDbPut(storeName, keyField, key, value);
-        isSavingLocally = true;
-        try {
-            const docRef = doc(firestoreDb, storeName, key);
-            await setDoc(docRef, {
-                [keyField]: key,
-                data: value,
-                updatedAt: Date.now()
-            });
-        } finally {
-            setTimeout(() => { isSavingLocally = false; }, 500);
-        }
-    }
-
-    async function dbGet(storeName, key) {
-        try {
-            const docRef = doc(firestoreDb, storeName, key);
-            const snap = await getDoc(docRef);
-            if (snap.exists() && snap.data() && snap.data().data !== undefined) {
-                const cloudVal = snap.data().data;
-                const keyField = storeName === STORE_EMPLOYEES ? "country" : "id";
-                await localDbPut(storeName, keyField, key, cloudVal);
-                return cloudVal;
-            }
-        } catch (e) {
-            console.warn("Firebase read fallback to local cache:", e);
-        }
-        return await localDbGet(storeName, key);
-    }
-
-    async function dbGetAll(storeName) {
-        const keyField = storeName === STORE_EMPLOYEES ? "country" : "id";
-        const mergedMap = new Map();
-
-        const localItems = await localDbGetAll(storeName);
-        localItems.forEach(item => {
-            if (item && item[keyField] && item.data !== undefined) {
-                mergedMap.set(item[keyField], item);
-            }
-        });
-
-        try {
-            const snap = await getDocs(collection(firestoreDb, storeName));
-            for (const docSnap of snap.docs) {
-                const d = docSnap.data();
-                if (d && d.data !== undefined) {
-                    const idVal = d[keyField] || docSnap.id;
-                    const record = { [keyField]: idVal, data: d.data };
-                    mergedMap.set(idVal, record);
-                    await localDbPut(storeName, keyField, idVal, d.data);
-                }
-            }
-        } catch (e) {
-            console.warn("Firebase getAll fallback to local cache:", e);
-        }
-
-        return Array.from(mergedMap.values());
     }
 
     const defaultCountryData = {
@@ -1467,7 +1376,7 @@
         });
     }
 
-    countrySelect.addEventListener('change', function () {
+    countrySelect.addEventListener('change', function (event) {
         const selectedCountry = this.value;
         const requiredPassword = passwordsByCountry[selectedCountry];
 
@@ -1482,85 +1391,8 @@
         });
     });
 
+    renderCurrentTable();
     dateInput.addEventListener('change', renderCurrentTable);
-
-    /* --- REALTIME FIREBASE LISTENERS FOR ALL COMPUTERS --- */
-    function setupRealtimeFirebaseSync() {
-        try {
-            onSnapshot(collection(firestoreDb, STORE_ATTENDANCE), async (snapshot) => {
-                if (isSavingLocally) return;
-                let needsRefreshCurrent = false;
-                const activeKey = `attendance_${countrySelect.value}_${dateInput.value}`;
-
-                for (const change of snapshot.docChanges()) {
-                    const d = change.data();
-                    if (d && d.data !== undefined) {
-                        const idVal = d.id || change.doc.id;
-                        await localDbPut(STORE_ATTENDANCE, "id", idVal, d.data);
-                        if (idVal === activeKey) {
-                            needsRefreshCurrent = true;
-                        }
-                    }
-                }
-
-                if (snapshot.docChanges().length > 0) {
-                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
-                    if (needsRefreshCurrent && !isEditingRow) {
-                        await renderCurrentTable();
-                    } else {
-                        updateGlobalCounters();
-                    }
-                    if (document.getElementById('teamsView').style.display === 'block') {
-                        await loadTeamsTable();
-                    }
-                    if (document.getElementById('statsView').style.display === 'block') {
-                        await loadBranchStats(activeStatsBranch);
-                    }
-                }
-            });
-
-            onSnapshot(collection(firestoreDb, STORE_EMPLOYEES), async (snapshot) => {
-                if (isSavingLocally) return;
-                let needsRefreshCurrent = false;
-
-                for (const change of snapshot.docChanges()) {
-                    const d = change.data();
-                    if (d && d.data !== undefined) {
-                        const countryKey = d.country || change.doc.id;
-                        await localDbPut(STORE_EMPLOYEES, "country", countryKey, d.data);
-                        if (countryKey === countrySelect.value) {
-                            needsRefreshCurrent = true;
-                        }
-                    }
-                }
-
-                if (snapshot.docChanges().length > 0) {
-                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
-                    if (needsRefreshCurrent && !isEditingRow) {
-                        await renderCurrentTable();
-                    } else {
-                        updateGlobalCounters();
-                    }
-                    if (document.getElementById('teamsView').style.display === 'block') {
-                        await loadTeamsTable();
-                    }
-                    if (document.getElementById('statsView').style.display === 'block') {
-                        await loadBranchStats(activeStatsBranch);
-                    }
-                }
-            });
-        } catch (e) {
-            console.warn("Realtime listener warning:", e);
-        }
-    }
-
-    async function initializeApp() {
-        await openDatabase();
-        await renderCurrentTable();
-        setupRealtimeFirebaseSync();
-    }
-
-    initializeApp();
 
     function updateSelectColor(selectElement) {
         if (!selectElement) return;
@@ -1603,7 +1435,7 @@
 
         try {
             updateGlobalCounters();
-        } catch (e) {}
+        } catch(e) {}
     }
 
     async function updateGlobalCounters() {
@@ -1720,7 +1552,7 @@
                     </select>
                 </td>
                 <td>
-                    <input type="text" id="comments_${index}" value="${escapeHtml(savedComments)}" placeholder="Enter a comment...">
+                    <input type="text" id="comments_${index}" value="${savedComments}" placeholder="Enter a comment...">
                 </td>
                 <td>
                     <div class="action-btn-group" id="btn-group-${index}">
@@ -1797,10 +1629,10 @@
             currentAttendanceArray[fromIdx] = currentAttendanceArray[toIdx];
             currentAttendanceArray[toIdx] = tempAtt;
 
-            // 4. Save swapped employee catalog to Firebase & local cache
+            // 4. Save swapped employee catalog correctly
             await saveCountryEmployees(country, employees);
 
-            // 5. Save swapped daily records to Firebase & local cache
+            // 5. Save swapped daily records
             const updatedDayData = {};
             currentAttendanceArray.forEach((rec, idx) => {
                 updatedDayData[idx] = rec;
@@ -1811,7 +1643,7 @@
 
             // 6. Refresh view
             await renderCurrentTable();
-            showToast("Agents swapped and synced to Firebase!");
+            showToast("Agents swapped successfully!");
         }
 
         draggedIndex = null;
@@ -1825,7 +1657,7 @@
         });
     }
 
-    function handleDragEnd() {
+    function handleDragEnd(e) {
         cleanAllDragOverClasses();
         draggedIndex = null;
     }
@@ -1866,7 +1698,7 @@
 
         await saveCountryEmployees(country, employees);
         renderCurrentTable();
-        showToast("Agent information updated and synced!");
+        showToast("Agent information updated!");
     }
 
     function deleteAgent(index) {
@@ -1897,7 +1729,7 @@
                 await dbPut(STORE_ATTENDANCE, "id", storageKey, newDayData);
 
                 renderCurrentTable();
-                showToast("Agent deleted and synced.");
+                showToast("Agent deleted successfully.");
             }
         });
     }
@@ -1919,7 +1751,7 @@
 
             employees.push(newAgent);
             await saveCountryEmployees(country, employees);
-            await renderCurrentTable();
+            renderCurrentTable();
 
             const newIndex = employees.length - 1;
             enableRowEdit(newIndex);
@@ -1927,7 +1759,7 @@
         });
     }
 
-    /* --- SAVE DATA TO FIREBASE FOR ALL COMPUTERS --- */
+    /* --- SAVE DATA TO INDEXEDDB --- */
     async function saveData() {
         const country = countrySelect ? countrySelect.value : '';
         const selectedDate = dateInput ? dateInput.value : '';
@@ -1954,14 +1786,15 @@
 
         try {
             await dbPut(STORE_ATTENDANCE, "id", storageKey, dataToSave);
-            showToast(`${country} attendance saved for ${selectedDate} for everyone!`);
+            showToast(`${country} attendance saved for ${selectedDate}!`);
             updateCounters();
+            // Keep Teams % summary synchronized as attendance is saved during the day
             if (document.getElementById('teamsView').style.display === 'block') {
                 await loadTeamsTable();
             }
         } catch (error) {
-            console.error("Error saving to Firebase:", error);
-            alert("Firebase save error: " + error.message + "\n\nPlease make sure Firestore Database is enabled in Firebase Console with read/write rules allowed.");
+            console.error("Error saving to IndexedDB:", error);
+            alert("Error saving: " + error.message);
         }
     }
 
@@ -2069,7 +1902,6 @@
 
     const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
     let activeStatsBranch = countrySelect.value || "Guatemala";
-    window.activeStatsBranch = activeStatsBranch;
 
     /* --- TEAMS % VIEW & ENGINE (BY DEPARTMENT - COUNTRY) --- */
     function showTeamsView() {
@@ -2414,7 +2246,6 @@
         document.getElementById('teamsView').style.display = 'none';
         document.getElementById('statsView').style.display = 'block';
         activeStatsBranch = countrySelect.value;
-        window.activeStatsBranch = activeStatsBranch;
         renderBranchTabs();
         loadBranchStats(activeStatsBranch);
     }
@@ -2436,7 +2267,6 @@
             btn.innerText = branch;
             btn.onclick = () => {
                 activeStatsBranch = branch;
-                window.activeStatsBranch = activeStatsBranch;
                 renderBranchTabs();
                 loadBranchStats(branch);
             };
@@ -2446,7 +2276,6 @@
 
     /* --- MONTHLY STATISTICS ENGINE --- */
     async function loadBranchStats(branch) {
-        branch = branch || activeStatsBranch;
         const tbody = document.getElementById('statsTableBody');
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Loading statistics...</td></tr>';
 
@@ -2461,11 +2290,11 @@
 
         const offenderMap = {};
 
-        // 1. Fetch records from Firebase + IndexedDB
-        const allRecords = await dbGetAll(STORE_ATTENDANCE);
+        // 1. Fetch records from IndexedDB
+        const allIndexedRecords = await dbGetAll(STORE_ATTENDANCE);
         const combinedDataMap = new Map();
 
-        allRecords.forEach(item => {
+        allIndexedRecords.forEach(item => {
             if (item && item.id && item.data) {
                 combinedDataMap.set(item.id, item.data);
             }
@@ -2478,7 +2307,7 @@
                 try {
                     const parsed = JSON.parse(localStorage.getItem(key));
                     if (parsed) combinedDataMap.set(key, parsed);
-                } catch (e) {}
+                } catch(e) {}
             }
         }
 
@@ -2553,24 +2382,6 @@
             tbody.appendChild(row);
         });
     }
-
-    /* --- EXPOSE HANDLERS GLOBALLY FOR INLINE HTML EVENTS --- */
-    window.toggleTheme = toggleTheme;
-    window.saveData = saveData;
-    window.exportToExcel = exportToExcel;
-    window.showTeamsView = showTeamsView;
-    window.showStatsView = showStatsView;
-    window.showMainView = showMainView;
-    window.addAgent = addAgent;
-    window.loadTeamsTable = loadTeamsTable;
-    window.copyTeamsTable = copyTeamsTable;
-    window.loadBranchStats = loadBranchStats;
-    window.closeAuthModal = closeAuthModal;
-    window.enableDragRow = enableDragRow;
-    window.updateSelectColor = updateSelectColor;
-    window.enableRowEdit = enableRowEdit;
-    window.saveRowEdit = saveRowEdit;
-    window.deleteAgent = deleteAgent;
 </script>
 
 </body>
