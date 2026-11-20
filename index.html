@@ -14,8 +14,6 @@
             --success-color: #198754;
             --excel-color: #107c41;
             --teams-color: #0288d1;
-            --share-color: #00897b;
-            --cloud-color: #4f46e5;
             --copy-color: #d97706;
             --warning-color: #ffc107;
             --danger-color: #dc3545;
@@ -170,10 +168,6 @@
         .btn-add-agent:hover { background-color: #0b5ed7; }
         .btn-save { background-color: var(--success-color); }
         .btn-save:hover { background-color: #157347; }
-        .btn-share { background-color: var(--share-color); }
-        .btn-share:hover { background-color: #00695c; }
-        .btn-cloud { background-color: var(--cloud-color); }
-        .btn-cloud:hover { background-color: #4338ca; }
         .btn-excel { background-color: var(--excel-color); }
         .btn-excel:hover { background-color: #0b5c30; }
         .btn-teams { background-color: var(--teams-color); }
@@ -561,7 +555,7 @@
             border-radius: 12px;
             padding: 25px;
             width: 90%;
-            max-width: 440px;
+            max-width: 400px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.6);
             text-align: center;
             color: var(--text-color);
@@ -575,29 +569,21 @@
 
         .modal-title {
             margin-top: 0;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             color: var(--amber-color);
             font-size: 1.25rem;
             font-weight: 700;
         }
 
-        .modal-desc {
-            font-size: 0.88rem;
-            opacity: 0.88;
-            margin-bottom: 15px;
-            line-height: 1.4;
-            text-align: left;
-        }
-
         .modal-input {
             width: 100%;
             padding: 10px 12px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             border: 1px solid var(--amber-color);
             border-radius: 6px;
             background-color: var(--input-bg);
             color: var(--input-text);
-            font-size: 0.95rem;
+            font-size: 1rem;
             outline: none;
             box-sizing: border-box;
         }
@@ -606,7 +592,6 @@
             display: flex;
             justify-content: flex-end;
             gap: 10px;
-            flex-wrap: wrap;
         }
 
         .modal-btn {
@@ -619,7 +604,6 @@
         }
 
         .modal-btn-confirm { background-color: var(--amber-color); color: #000000; }
-        .modal-btn-danger { background-color: var(--danger-color); color: #ffffff; }
         .modal-btn-cancel { background-color: #6c757d; color: #ffffff; }
         .modal-btn:hover { opacity: 0.9; }
     </style>
@@ -657,8 +641,6 @@
                 </div>
 
                 <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
-                <button class="btn btn-share" id="shareLinkBtn" onclick="copyShareableLink()" title="Copy link with all saved days embedded">🔗 Share Link</button>
-                <button class="btn btn-cloud" id="cloudSyncBtn" onclick="openCloudSyncModal()" title="Optional live cloud database sync">☁️ Cloud Sync</button>
                 <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
                 <button class="btn btn-teams" onclick="showTeamsView()">📋 See Teams %</button>
                 <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
@@ -869,30 +851,46 @@
     </div>
 </div>
 
-<div id="cloudSyncModal" class="modal-overlay">
-    <div class="modal-card">
-        <h3 class="modal-title"><i class="fa-solid fa-cloud"></i> Live Cloud Sync (Optional)</h3>
-        <p class="modal-desc">
-            Paste a Firebase Realtime Database URL (e.g. <code>https://your-project.firebaseio.com</code>) to sync saved days live across all devices automatically. Leave empty to use built-in Share Link sync.
-        </p>
-        <input type="text" id="cloudDbUrlInput" class="modal-input" placeholder="https://your-project.firebaseio.com">
-        <div class="modal-buttons">
-            <button class="modal-btn modal-btn-danger" onclick="clearCloudDbUrl()">Disconnect</button>
-            <button class="modal-btn modal-btn-cancel" onclick="closeCloudSyncModal()">Cancel</button>
-            <button class="modal-btn modal-btn-confirm" onclick="saveCloudDbUrl()">Save & Sync</button>
-        </div>
-    </div>
-</div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-analytics.js";
+    import {
+        getFirestore,
+        doc,
+        getDoc,
+        setDoc,
+        getDocs,
+        collection,
+        onSnapshot
+    } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
 
-<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB3v43flyyqaBtq7vtb7OUA-Crx9Wn9UnE",
+        authDomain: "customersupportattendance.firebaseapp.com",
+        projectId: "customersupportattendance",
+        storageBucket: "customersupportattendance.firebasestorage.app",
+        messagingSenderId: "103662288179",
+        appId: "1:103662288179:web:65311646adc127b3fe5246",
+        measurementId: "G-DBKTZT3C4X"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    try {
+        getAnalytics(app);
+    } catch (e) {
+        console.warn("Analytics skipped:", e);
+    }
+    const firestoreDb = getFirestore(app);
+
     const MANAGEMENT_PASSWORD = "management2026!";
 
-    /* --- UNLIMITED INDEXEDDB ENGINE --- */
+    /* --- LOCAL CACHE + FIREBASE FIRESTORE ENGINE --- */
     const DB_NAME = "AttendanceSystemDB";
     const DB_VERSION = 2;
     const STORE_ATTENDANCE = "daily_attendance";
     const STORE_EMPLOYEES = "employees_store";
     let dbInstance = null;
+    let isSavingLocally = false;
 
     async function requestStoragePersistence() {
         if (navigator.storage && navigator.storage.persist) {
@@ -925,7 +923,7 @@
         });
     }
 
-    async function dbPut(storeName, keyField, key, value) {
+    async function localDbPut(storeName, keyField, key, value) {
         const db = await openDatabase();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(storeName, "readwrite");
@@ -939,7 +937,7 @@
         });
     }
 
-    async function dbGet(storeName, key) {
+    async function localDbGet(storeName, key) {
         const db = await openDatabase();
         return new Promise((resolve) => {
             const tx = db.transaction(storeName, "readonly");
@@ -953,7 +951,7 @@
                         const legacyKey = storeName === STORE_EMPLOYEES ? `CS_EMPLOYEES_LIST_${key}` : key;
                         const legacy = localStorage.getItem(legacyKey);
                         resolve(legacy ? JSON.parse(legacy) : null);
-                    } catch(e) {
+                    } catch (e) {
                         resolve(null);
                     }
                 }
@@ -962,7 +960,7 @@
         });
     }
 
-    async function dbGetAll(storeName) {
+    async function localDbGetAll(storeName) {
         const db = await openDatabase();
         return new Promise((resolve) => {
             const tx = db.transaction(storeName, "readonly");
@@ -971,6 +969,66 @@
             req.onsuccess = () => resolve(req.result || []);
             req.onerror = () => resolve([]);
         });
+    }
+
+    async function dbPut(storeName, keyField, key, value) {
+        await localDbPut(storeName, keyField, key, value);
+        isSavingLocally = true;
+        try {
+            const docRef = doc(firestoreDb, storeName, key);
+            await setDoc(docRef, {
+                [keyField]: key,
+                data: value,
+                updatedAt: Date.now()
+            });
+        } finally {
+            setTimeout(() => { isSavingLocally = false; }, 500);
+        }
+    }
+
+    async function dbGet(storeName, key) {
+        try {
+            const docRef = doc(firestoreDb, storeName, key);
+            const snap = await getDoc(docRef);
+            if (snap.exists() && snap.data() && snap.data().data !== undefined) {
+                const cloudVal = snap.data().data;
+                const keyField = storeName === STORE_EMPLOYEES ? "country" : "id";
+                await localDbPut(storeName, keyField, key, cloudVal);
+                return cloudVal;
+            }
+        } catch (e) {
+            console.warn("Firebase read fallback to local cache:", e);
+        }
+        return await localDbGet(storeName, key);
+    }
+
+    async function dbGetAll(storeName) {
+        const keyField = storeName === STORE_EMPLOYEES ? "country" : "id";
+        const mergedMap = new Map();
+
+        const localItems = await localDbGetAll(storeName);
+        localItems.forEach(item => {
+            if (item && item[keyField] && item.data !== undefined) {
+                mergedMap.set(item[keyField], item);
+            }
+        });
+
+        try {
+            const snap = await getDocs(collection(firestoreDb, storeName));
+            for (const docSnap of snap.docs) {
+                const d = docSnap.data();
+                if (d && d.data !== undefined) {
+                    const idVal = d[keyField] || docSnap.id;
+                    const record = { [keyField]: idVal, data: d.data };
+                    mergedMap.set(idVal, record);
+                    await localDbPut(storeName, keyField, idVal, d.data);
+                }
+            }
+        } catch (e) {
+            console.warn("Firebase getAll fallback to local cache:", e);
+        }
+
+        return Array.from(mergedMap.values());
     }
 
     const defaultCountryData = {
@@ -1149,8 +1207,6 @@
 
     async function saveCountryEmployees(country, list) {
         await dbPut(STORE_EMPLOYEES, "country", country, list);
-        await syncStateToUrlHash();
-        await pushStateToCloud();
     }
 
     const statusOptions = [
@@ -1197,340 +1253,6 @@
     const notPresentStatuses = [
         ...expectedAbsences, ...unexpectedAbsences
     ];
-
-    /* --- SHAREABLE LINK & CLOUD SYNC ENGINE --- */
-    const CLOUD_DB_STORAGE_KEY = "CS_ATTENDANCE_CLOUD_DB_URL";
-
-    function getCloudDbUrl() {
-        const params = new URLSearchParams(window.location.search);
-        const urlFromQuery = params.get("db");
-        if (urlFromQuery) {
-            localStorage.setItem(CLOUD_DB_STORAGE_KEY, urlFromQuery.trim());
-            return urlFromQuery.trim();
-        }
-        return (localStorage.getItem(CLOUD_DB_STORAGE_KEY) || "").trim();
-    }
-
-    function updateCloudSyncButtonBadge() {
-        const btn = document.getElementById("cloudSyncBtn");
-        if (!btn) return;
-        const dbUrl = getCloudDbUrl();
-        if (dbUrl) {
-            btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Cloud Sync: ON`;
-            btn.style.backgroundColor = "#0d9488";
-        } else {
-            btn.innerHTML = `<i class="fa-solid fa-cloud"></i> Cloud Sync`;
-            btn.style.backgroundColor = "";
-        }
-    }
-
-    function openCloudSyncModal() {
-        document.getElementById("cloudDbUrlInput").value = getCloudDbUrl();
-        document.getElementById("cloudSyncModal").style.display = "flex";
-    }
-
-    function closeCloudSyncModal() {
-        document.getElementById("cloudSyncModal").style.display = "none";
-    }
-
-    async function saveCloudDbUrl() {
-        const raw = document.getElementById("cloudDbUrlInput").value.trim().replace(/\/+$/, "");
-        if (!raw) {
-            alert("Please enter a valid Firebase Realtime Database URL.");
-            return;
-        }
-        localStorage.setItem(CLOUD_DB_STORAGE_KEY, raw);
-        updateCloudSyncButtonBadge();
-        closeCloudSyncModal();
-        await pullStateFromCloud();
-        await pushStateToCloud();
-        await renderCurrentTable();
-        showToast("Cloud Sync connected and synchronized!");
-    }
-
-    function clearCloudDbUrl() {
-        localStorage.removeItem(CLOUD_DB_STORAGE_KEY);
-        const url = new URL(window.location.href);
-        url.searchParams.delete("db");
-        try { window.history.replaceState(null, "", url.toString()); } catch (e) {}
-        updateCloudSyncButtonBadge();
-        closeCloudSyncModal();
-        showToast("Cloud Sync disconnected.");
-    }
-
-    async function compressString(str) {
-        try {
-            if (typeof CompressionStream !== "undefined") {
-                const encoder = new TextEncoder();
-                const stream = new CompressionStream("deflate-raw");
-                const writer = stream.writable.getWriter();
-                writer.write(encoder.encode(str));
-                writer.close();
-                const buffer = await new Response(stream.readable).arrayBuffer();
-                const bytes = new Uint8Array(buffer);
-                let binary = "";
-                const chunkSize = 0x8000;
-                for (let i = 0; i < bytes.length; i += chunkSize) {
-                    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-                }
-                return "z_" + btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-            }
-        } catch (e) {
-            console.warn("Compression fallback:", e);
-        }
-        const utf8Bytes = new TextEncoder().encode(str);
-        let binary = "";
-        for (let i = 0; i < utf8Bytes.length; i++) {
-            binary += String.fromCharCode(utf8Bytes[i]);
-        }
-        return "b_" + btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    }
-
-    async function decompressString(encoded) {
-        if (!encoded) return null;
-        const isZlib = encoded.startsWith("z_");
-        const isBase64 = encoded.startsWith("b_");
-        const rawB64 = (isZlib || isBase64) ? encoded.slice(2) : encoded;
-        const base64 = rawB64.replace(/-/g, "+").replace(/_/g, "/");
-        const padded = base64 + "===".slice((base64.length + 3) % 4);
-        const binary = atob(padded);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
-        if (isZlib && typeof DecompressionStream !== "undefined") {
-            const stream = new DecompressionStream("deflate-raw");
-            const writer = stream.writable.getWriter();
-            writer.write(bytes);
-            writer.close();
-            const buffer = await new Response(stream.readable).arrayBuffer();
-            return new TextDecoder().decode(buffer);
-        }
-        return new TextDecoder().decode(bytes);
-    }
-
-    async function buildCompactStatePayload() {
-        const allRecords = await dbGetAll(STORE_ATTENDANCE);
-        const combinedMap = new Map();
-
-        allRecords.forEach(item => {
-            if (item && item.id && item.data) {
-                combinedMap.set(item.id, item.data);
-            }
-        });
-
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && k.startsWith("attendance_") && !combinedMap.has(k)) {
-                try {
-                    const parsed = JSON.parse(localStorage.getItem(k));
-                    if (parsed) combinedMap.set(k, parsed);
-                } catch (e) {}
-            }
-        }
-
-        const packedAttendance = {};
-        combinedMap.forEach((dayObj, key) => {
-            if (!key.startsWith("attendance_") || !dayObj) return;
-            const entries = [];
-            Object.keys(dayObj).forEach(idxStr => {
-                const rec = dayObj[idxStr];
-                if (!rec) return;
-                const st = (rec.status || "").trim();
-                const cm = (rec.comments || "").trim();
-                if (st !== "" || cm !== "") {
-                    const stIdx = statusOptions.indexOf(st);
-                    const stVal = stIdx !== -1 ? stIdx : st;
-                    if (cm !== "") {
-                        entries.push([parseInt(idxStr, 10), stVal, cm]);
-                    } else {
-                        entries.push([parseInt(idxStr, 10), stVal]);
-                    }
-                }
-            });
-            if (entries.length > 0) {
-                packedAttendance[key] = entries;
-            }
-        });
-
-        const packedEmployees = {};
-        for (const c of Object.keys(defaultCountryData)) {
-            const currentList = await getCountryEmployees(c);
-            const defaultList = defaultCountryData[c] || [];
-            if (JSON.stringify(currentList) !== JSON.stringify(defaultList)) {
-                packedEmployees[c] = currentList;
-            }
-        }
-
-        return {
-            v: 1,
-            d: dateInput ? dateInput.value : "",
-            a: packedAttendance,
-            e: packedEmployees
-        };
-    }
-
-    async function applyCompactStatePayload(payload) {
-        if (!payload || typeof payload !== "object") return false;
-        let importedCount = 0;
-
-        if (payload.e && typeof payload.e === "object") {
-            for (const c of Object.keys(payload.e)) {
-                if (Array.isArray(payload.e[c]) && payload.e[c].length > 0) {
-                    await dbPut(STORE_EMPLOYEES, "country", c, payload.e[c]);
-                }
-            }
-        }
-
-        if (payload.a && typeof payload.a === "object") {
-            for (const key of Object.keys(payload.a)) {
-                if (!key.startsWith("attendance_")) continue;
-                const entries = payload.a[key];
-                const restoredDay = {};
-
-                if (Array.isArray(entries)) {
-                    entries.forEach(item => {
-                        if (!Array.isArray(item) || item.length < 2) return;
-                        const idx = item[0];
-                        const rawSt = item[1];
-                        const st = typeof rawSt === "number" ? (statusOptions[rawSt] || "") : (rawSt || "");
-                        const cm = item[2] || "";
-                        restoredDay[idx] = { status: st, comments: cm };
-                    });
-                } else if (entries && typeof entries === "object") {
-                    Object.assign(restoredDay, entries);
-                }
-
-                await dbPut(STORE_ATTENDANCE, "id", key, restoredDay);
-                importedCount++;
-            }
-        }
-
-        if (payload.d && /^\d{4}-\d{2}-\d{2}$/.test(payload.d) && dateInput) {
-            dateInput.value = payload.d;
-        }
-
-        return importedCount > 0;
-    }
-
-    async function buildShareableUrl() {
-        const payload = await buildCompactStatePayload();
-        const jsonStr = JSON.stringify(payload);
-        const compressed = await compressString(jsonStr);
-        const url = new URL(window.location.href);
-        const dbUrl = getCloudDbUrl();
-        if (dbUrl) {
-            url.searchParams.set("db", dbUrl);
-        }
-        url.hash = "sync=" + compressed;
-        return url.toString();
-    }
-
-    async function syncStateToUrlHash() {
-        try {
-            const shareUrl = await buildShareableUrl();
-            window.history.replaceState(null, "", shareUrl);
-            return shareUrl;
-        } catch (e) {
-            console.warn("Could not update URL hash:", e);
-            return window.location.href;
-        }
-    }
-
-    async function importSharedStateFromUrl() {
-        try {
-            const hash = window.location.hash || "";
-            if (!hash.includes("sync=")) return false;
-            const match = hash.match(/sync=([^&]+)/);
-            if (!match || !match[1]) return false;
-            const jsonStr = await decompressString(match[1]);
-            if (!jsonStr) return false;
-            const payload = JSON.parse(jsonStr);
-            return await applyCompactStatePayload(payload);
-        } catch (e) {
-            console.error("Failed to import shared state from URL:", e);
-            return false;
-        }
-    }
-
-    async function pushStateToCloud() {
-        const dbUrl = getCloudDbUrl();
-        if (!dbUrl) return;
-        try {
-            const payload = await buildCompactStatePayload();
-            const endpoint = dbUrl.endsWith(".json") ? dbUrl : `${dbUrl}/cs_daily_attendance_state.json`;
-            await fetch(endpoint, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-        } catch (e) {
-            console.warn("Cloud sync push failed:", e);
-        }
-    }
-
-    async function pullStateFromCloud() {
-        const dbUrl = getCloudDbUrl();
-        if (!dbUrl) return false;
-        try {
-            const endpoint = dbUrl.endsWith(".json") ? dbUrl : `${dbUrl}/cs_daily_attendance_state.json`;
-            const res = await fetch(endpoint);
-            if (!res.ok) return false;
-            const payload = await res.json();
-            if (payload) {
-                const currentSelectedDate = dateInput ? dateInput.value : "";
-                const imported = await applyCompactStatePayload(payload);
-                if (currentSelectedDate && dateInput) {
-                    dateInput.value = currentSelectedDate;
-                }
-                return imported;
-            }
-        } catch (e) {
-            console.warn("Cloud sync pull failed:", e);
-        }
-        return false;
-    }
-
-    async function copyShareableLink() {
-        const shareUrl = await syncStateToUrlHash();
-        let copied = false;
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-                await navigator.clipboard.writeText(shareUrl);
-                copied = true;
-            } catch (e) {
-                copied = false;
-            }
-        }
-
-        if (!copied) {
-            const tempInput = document.createElement("input");
-            tempInput.style.position = "fixed";
-            tempInput.style.left = "-9999px";
-            tempInput.value = shareUrl;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            try {
-                copied = document.execCommand("copy");
-            } catch (e) {
-                copied = false;
-            }
-            document.body.removeChild(tempInput);
-        }
-
-        if (copied) {
-            showToast("Shareable link copied! Anyone with this link will see all saved days.");
-            const btn = document.getElementById("shareLinkBtn");
-            if (btn) {
-                const orig = btn.innerHTML;
-                btn.innerHTML = `<i class="fa-solid fa-check"></i> Link Copied!`;
-                setTimeout(() => { btn.innerHTML = orig; }, 2200);
-            }
-        } else {
-            prompt("Copy this link to share all saved days:", shareUrl);
-        }
-    }
 
     function cleanString(str) {
         return str ? str.toString().toUpperCase().replace(/[^A-Z]/g, '') : '';
@@ -1745,7 +1467,7 @@
         });
     }
 
-    countrySelect.addEventListener('change', function (event) {
+    countrySelect.addEventListener('change', function () {
         const selectedCountry = this.value;
         const requiredPassword = passwordsByCountry[selectedCountry];
 
@@ -1760,22 +1482,82 @@
         });
     });
 
-    dateInput.addEventListener('change', async () => {
-        await pullStateFromCloud();
-        await renderCurrentTable();
-        await syncStateToUrlHash();
-    });
+    dateInput.addEventListener('change', renderCurrentTable);
+
+    /* --- REALTIME FIREBASE LISTENERS FOR ALL COMPUTERS --- */
+    function setupRealtimeFirebaseSync() {
+        try {
+            onSnapshot(collection(firestoreDb, STORE_ATTENDANCE), async (snapshot) => {
+                if (isSavingLocally) return;
+                let needsRefreshCurrent = false;
+                const activeKey = `attendance_${countrySelect.value}_${dateInput.value}`;
+
+                for (const change of snapshot.docChanges()) {
+                    const d = change.data();
+                    if (d && d.data !== undefined) {
+                        const idVal = d.id || change.doc.id;
+                        await localDbPut(STORE_ATTENDANCE, "id", idVal, d.data);
+                        if (idVal === activeKey) {
+                            needsRefreshCurrent = true;
+                        }
+                    }
+                }
+
+                if (snapshot.docChanges().length > 0) {
+                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
+                    if (needsRefreshCurrent && !isEditingRow) {
+                        await renderCurrentTable();
+                    } else {
+                        updateGlobalCounters();
+                    }
+                    if (document.getElementById('teamsView').style.display === 'block') {
+                        await loadTeamsTable();
+                    }
+                    if (document.getElementById('statsView').style.display === 'block') {
+                        await loadBranchStats(activeStatsBranch);
+                    }
+                }
+            });
+
+            onSnapshot(collection(firestoreDb, STORE_EMPLOYEES), async (snapshot) => {
+                if (isSavingLocally) return;
+                let needsRefreshCurrent = false;
+
+                for (const change of snapshot.docChanges()) {
+                    const d = change.data();
+                    if (d && d.data !== undefined) {
+                        const countryKey = d.country || change.doc.id;
+                        await localDbPut(STORE_EMPLOYEES, "country", countryKey, d.data);
+                        if (countryKey === countrySelect.value) {
+                            needsRefreshCurrent = true;
+                        }
+                    }
+                }
+
+                if (snapshot.docChanges().length > 0) {
+                    const isEditingRow = Array.from(document.querySelectorAll('input.edit-input')).some(inp => inp.style.display !== 'none');
+                    if (needsRefreshCurrent && !isEditingRow) {
+                        await renderCurrentTable();
+                    } else {
+                        updateGlobalCounters();
+                    }
+                    if (document.getElementById('teamsView').style.display === 'block') {
+                        await loadTeamsTable();
+                    }
+                    if (document.getElementById('statsView').style.display === 'block') {
+                        await loadBranchStats(activeStatsBranch);
+                    }
+                }
+            });
+        } catch (e) {
+            console.warn("Realtime listener warning:", e);
+        }
+    }
 
     async function initializeApp() {
         await openDatabase();
-        updateCloudSyncButtonBadge();
-        const loadedFromLink = await importSharedStateFromUrl();
-        const loadedFromCloud = await pullStateFromCloud();
         await renderCurrentTable();
-        await syncStateToUrlHash();
-        if (loadedFromLink || loadedFromCloud) {
-            showToast("Shared attendance days loaded successfully!");
-        }
+        setupRealtimeFirebaseSync();
     }
 
     initializeApp();
@@ -1821,7 +1603,7 @@
 
         try {
             updateGlobalCounters();
-        } catch(e) {}
+        } catch (e) {}
     }
 
     async function updateGlobalCounters() {
@@ -1938,7 +1720,7 @@
                     </select>
                 </td>
                 <td>
-                    <input type="text" id="comments_${index}" value="${savedComments}" placeholder="Enter a comment...">
+                    <input type="text" id="comments_${index}" value="${escapeHtml(savedComments)}" placeholder="Enter a comment...">
                 </td>
                 <td>
                     <div class="action-btn-group" id="btn-group-${index}">
@@ -2015,10 +1797,10 @@
             currentAttendanceArray[fromIdx] = currentAttendanceArray[toIdx];
             currentAttendanceArray[toIdx] = tempAtt;
 
-            // 4. Save swapped employee catalog correctly
+            // 4. Save swapped employee catalog to Firebase & local cache
             await saveCountryEmployees(country, employees);
 
-            // 5. Save swapped daily records
+            // 5. Save swapped daily records to Firebase & local cache
             const updatedDayData = {};
             currentAttendanceArray.forEach((rec, idx) => {
                 updatedDayData[idx] = rec;
@@ -2026,12 +1808,10 @@
 
             const storageKey = `attendance_${country}_${selectedDate}`;
             await dbPut(STORE_ATTENDANCE, "id", storageKey, updatedDayData);
-            await syncStateToUrlHash();
-            await pushStateToCloud();
 
             // 6. Refresh view
             await renderCurrentTable();
-            showToast("Agents swapped successfully!");
+            showToast("Agents swapped and synced to Firebase!");
         }
 
         draggedIndex = null;
@@ -2045,7 +1825,7 @@
         });
     }
 
-    function handleDragEnd(e) {
+    function handleDragEnd() {
         cleanAllDragOverClasses();
         draggedIndex = null;
     }
@@ -2086,7 +1866,7 @@
 
         await saveCountryEmployees(country, employees);
         renderCurrentTable();
-        showToast("Agent information updated!");
+        showToast("Agent information updated and synced!");
     }
 
     function deleteAgent(index) {
@@ -2115,11 +1895,9 @@
                 });
 
                 await dbPut(STORE_ATTENDANCE, "id", storageKey, newDayData);
-                await syncStateToUrlHash();
-                await pushStateToCloud();
 
                 renderCurrentTable();
-                showToast("Agent deleted successfully.");
+                showToast("Agent deleted and synced.");
             }
         });
     }
@@ -2141,7 +1919,7 @@
 
             employees.push(newAgent);
             await saveCountryEmployees(country, employees);
-            renderCurrentTable();
+            await renderCurrentTable();
 
             const newIndex = employees.length - 1;
             enableRowEdit(newIndex);
@@ -2149,7 +1927,7 @@
         });
     }
 
-    /* --- SAVE DATA TO INDEXEDDB + SHAREABLE LINK + CLOUD --- */
+    /* --- SAVE DATA TO FIREBASE FOR ALL COMPUTERS --- */
     async function saveData() {
         const country = countrySelect ? countrySelect.value : '';
         const selectedDate = dateInput ? dateInput.value : '';
@@ -2176,17 +1954,14 @@
 
         try {
             await dbPut(STORE_ATTENDANCE, "id", storageKey, dataToSave);
-            await syncStateToUrlHash();
-            await pushStateToCloud();
-            showToast(`${country} attendance saved for ${selectedDate}! Use "Share Link" to share.`);
+            showToast(`${country} attendance saved for ${selectedDate} for everyone!`);
             updateCounters();
-            // Keep Teams % summary synchronized as attendance is saved during the day
             if (document.getElementById('teamsView').style.display === 'block') {
                 await loadTeamsTable();
             }
         } catch (error) {
-            console.error("Error saving to IndexedDB:", error);
-            alert("Error saving: " + error.message);
+            console.error("Error saving to Firebase:", error);
+            alert("Firebase save error: " + error.message + "\n\nPlease make sure Firestore Database is enabled in Firebase Console with read/write rules allowed.");
         }
     }
 
@@ -2289,11 +2064,12 @@
         if (!toast) return;
         toast.innerText = message;
         toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 3200);
+        setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
     const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
     let activeStatsBranch = countrySelect.value || "Guatemala";
+    window.activeStatsBranch = activeStatsBranch;
 
     /* --- TEAMS % VIEW & ENGINE (BY DEPARTMENT - COUNTRY) --- */
     function showTeamsView() {
@@ -2638,6 +2414,7 @@
         document.getElementById('teamsView').style.display = 'none';
         document.getElementById('statsView').style.display = 'block';
         activeStatsBranch = countrySelect.value;
+        window.activeStatsBranch = activeStatsBranch;
         renderBranchTabs();
         loadBranchStats(activeStatsBranch);
     }
@@ -2659,6 +2436,7 @@
             btn.innerText = branch;
             btn.onclick = () => {
                 activeStatsBranch = branch;
+                window.activeStatsBranch = activeStatsBranch;
                 renderBranchTabs();
                 loadBranchStats(branch);
             };
@@ -2668,6 +2446,7 @@
 
     /* --- MONTHLY STATISTICS ENGINE --- */
     async function loadBranchStats(branch) {
+        branch = branch || activeStatsBranch;
         const tbody = document.getElementById('statsTableBody');
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Loading statistics...</td></tr>';
 
@@ -2682,11 +2461,11 @@
 
         const offenderMap = {};
 
-        // 1. Fetch records from IndexedDB
-        const allIndexedRecords = await dbGetAll(STORE_ATTENDANCE);
+        // 1. Fetch records from Firebase + IndexedDB
+        const allRecords = await dbGetAll(STORE_ATTENDANCE);
         const combinedDataMap = new Map();
 
-        allIndexedRecords.forEach(item => {
+        allRecords.forEach(item => {
             if (item && item.id && item.data) {
                 combinedDataMap.set(item.id, item.data);
             }
@@ -2699,7 +2478,7 @@
                 try {
                     const parsed = JSON.parse(localStorage.getItem(key));
                     if (parsed) combinedDataMap.set(key, parsed);
-                } catch(e) {}
+                } catch (e) {}
             }
         }
 
@@ -2774,6 +2553,24 @@
             tbody.appendChild(row);
         });
     }
+
+    /* --- EXPOSE HANDLERS GLOBALLY FOR INLINE HTML EVENTS --- */
+    window.toggleTheme = toggleTheme;
+    window.saveData = saveData;
+    window.exportToExcel = exportToExcel;
+    window.showTeamsView = showTeamsView;
+    window.showStatsView = showStatsView;
+    window.showMainView = showMainView;
+    window.addAgent = addAgent;
+    window.loadTeamsTable = loadTeamsTable;
+    window.copyTeamsTable = copyTeamsTable;
+    window.loadBranchStats = loadBranchStats;
+    window.closeAuthModal = closeAuthModal;
+    window.enableDragRow = enableDragRow;
+    window.updateSelectColor = updateSelectColor;
+    window.enableRowEdit = enableRowEdit;
+    window.saveRowEdit = saveRowEdit;
+    window.deleteAgent = deleteAgent;
 </script>
 
 </body>
