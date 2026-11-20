@@ -235,6 +235,7 @@
         .stat-card.not-present { border-left-color: var(--danger-color); }
         .stat-card.expected { border-left-color: #0d6efd; }
         .stat-card.unexpected { border-left-color: #6f42c1; }
+        .stat-card.not-started { border-left-color: #00b0ff; }
 
         .stat-title {
             font-size: 0.85rem;
@@ -417,6 +418,14 @@
         .country-jamaica     { background-color: #fff9c4; color: #000; }
         .country-mexico      { background-color: #c8e6c9; color: #000; }
 
+        /* Country-based colors for Department - Country column in See Teams % */
+        td.dept-country-guatemala   { background-color: #81d4fa !important; color: #000000 !important; font-weight: 800 !important; }
+        td.dept-country-mexico      { background-color: #1b5e20 !important; color: #ffffff !important; font-weight: 800 !important; }
+        td.dept-country-panama      { background-color: #cc0000 !important; color: #ffffff !important; font-weight: 800 !important; }
+        td.dept-country-colombia    { background-color: #ff6d00 !important; color: #000000 !important; font-weight: 800 !important; }
+        td.dept-country-philippines { background-color: #ce93d8 !important; color: #000000 !important; font-weight: 800 !important; }
+        td.dept-country-jamaica     { background-color: #ffd600 !important; color: #000000 !important; font-weight: 800 !important; }
+
         select.status-na               { background-color: #ffffff !important; color: #333 !important; }
         select.status-attended         { background-color: #007e33 !important; color: #ffffff !important; }
         select.status-day-off          { background-color: #e0e0e0 !important; color: #000000 !important; }
@@ -490,6 +499,8 @@
         body.light-mode .pct-alert { background-color: rgba(220, 53, 69, 0.2); color: #842029; }
         .pct-warn { background-color: rgba(255, 193, 7, 0.25); color: #ffda6a; }
         body.light-mode .pct-warn { background-color: rgba(255, 193, 7, 0.35); color: #664d03; }
+        .pct-info { background-color: rgba(0, 176, 255, 0.25); color: #6edff6; }
+        body.light-mode .pct-info { background-color: rgba(0, 176, 255, 0.25); color: #055160; }
 
         .modal-overlay {
             position: fixed;
@@ -708,6 +719,10 @@
                 <div class="stat-title">Global % of Lates</div>
                 <div class="stat-value" id="teamsGlobalLatesPct">0.0%</div>
             </div>
+            <div class="stat-card not-started">
+                <div class="stat-title">Global % of Shift Not Started</div>
+                <div class="stat-value" id="teamsGlobalNotStartedPct">0.0%</div>
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -718,6 +733,7 @@
                         <th class="header-teams">NUMBER OF AGENTS IN</th>
                         <th class="header-teams">% OF UNEXPECTED ABSENCES</th>
                         <th class="header-teams">% OF LATES</th>
+                        <th class="header-teams">% OF AGENTS WITH THE SHIFT NOT STARTED</th>
                     </tr>
                 </thead>
                 <tbody id="teamsTableBody">
@@ -806,7 +822,7 @@
 
     async function requestStoragePersistence() {
         if (navigator.storage && navigator.storage.persist) {
-            const isPersisted = await navigator.storage.persist();
+            const isPersisted = await navigator.storage.persisted();
             if (!isPersisted) {
                 await navigator.storage.persist();
             }
@@ -1029,6 +1045,15 @@
         "Mexico": "MEX",
         "Panama": "PAN",
         "Philippines": "PHI"
+    };
+
+    const deptCountryClassMap = {
+        "Guatemala": "dept-country-guatemala",
+        "Mexico": "dept-country-mexico",
+        "Panama": "dept-country-panama",
+        "Colombia": "dept-country-colombia",
+        "Philippines": "dept-country-philippines",
+        "Jamaica": "dept-country-jamaica"
     };
 
     async function getCountryEmployees(country) {
@@ -1831,7 +1856,7 @@
 
     async function loadTeamsTable() {
         const tbody = document.getElementById('teamsTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
 
         const selectedDate = document.getElementById('teamsDateSelect').value || dateInput.value;
         const countryFilter = document.getElementById('teamsCountryFilter').value;
@@ -1844,6 +1869,7 @@
         let grandTotalAgentsIn = 0;
         let grandTotalUnexpected = 0;
         let grandTotalLates = 0;
+        let grandTotalNotStarted = 0;
 
         for (const country of targetCountries) {
             const storageKey = `attendance_${country}_${selectedDate}`;
@@ -1861,10 +1887,12 @@
                 if (!deptMap.has(normTeam)) {
                     deptMap.set(normTeam, {
                         label: `${normTeam} - ${code}`,
+                        country: country,
                         rawTeam: rawTeam,
                         agentsIn: 0,
                         unexpectedCount: 0,
-                        latesCount: 0
+                        latesCount: 0,
+                        notStartedCount: 0
                     });
                 }
 
@@ -1881,55 +1909,72 @@
                 if (statusVal === 'LATE' || statusVal === 'LATE JUSTIFIED (BACK UP DOC.)') {
                     entry.latesCount += 1;
                 }
+                if (statusVal === 'N/A') {
+                    entry.notStartedCount += 1;
+                }
             });
 
             deptMap.forEach((stats) => {
-                const scheduledCount = stats.agentsIn + stats.unexpectedCount;
-                const unexpectedPct = scheduledCount > 0 ? ((stats.unexpectedCount / scheduledCount) * 100) : 0;
-                const latesPct = scheduledCount > 0 ? ((stats.latesCount / scheduledCount) * 100) : 0;
+                const startedScheduledCount = stats.agentsIn + stats.unexpectedCount;
+                const totalActiveRosterToday = stats.agentsIn + stats.unexpectedCount + stats.notStartedCount;
+
+                const unexpectedPct = startedScheduledCount > 0 ? ((stats.unexpectedCount / startedScheduledCount) * 100) : 0;
+                const latesPct = startedScheduledCount > 0 ? ((stats.latesCount / startedScheduledCount) * 100) : 0;
+                const notStartedPct = totalActiveRosterToday > 0 ? ((stats.notStartedCount / totalActiveRosterToday) * 100) : 0;
 
                 grandTotalAgentsIn += stats.agentsIn;
                 grandTotalUnexpected += stats.unexpectedCount;
                 grandTotalLates += stats.latesCount;
+                grandTotalNotStarted += stats.notStartedCount;
 
                 teamRows.push({
                     ...stats,
-                    scheduledCount,
+                    startedScheduledCount,
+                    totalActiveRosterToday,
                     unexpectedPct,
-                    latesPct
+                    latesPct,
+                    notStartedPct
                 });
             });
         }
 
         // Update top summary KPI cards
-        const grandScheduled = grandTotalAgentsIn + grandTotalUnexpected;
-        const globalUnexpectedPct = grandScheduled > 0 ? ((grandTotalUnexpected / grandScheduled) * 100).toFixed(1) : '0.0';
-        const globalLatesPct = grandScheduled > 0 ? ((grandTotalLates / grandScheduled) * 100).toFixed(1) : '0.0';
+        const grandStartedScheduled = grandTotalAgentsIn + grandTotalUnexpected;
+        const grandTotalRoster = grandTotalAgentsIn + grandTotalUnexpected + grandTotalNotStarted;
+
+        const globalUnexpectedPct = grandStartedScheduled > 0 ? ((grandTotalUnexpected / grandStartedScheduled) * 100).toFixed(1) : '0.0';
+        const globalLatesPct = grandStartedScheduled > 0 ? ((grandTotalLates / grandStartedScheduled) * 100).toFixed(1) : '0.0';
+        const globalNotStartedPct = grandTotalRoster > 0 ? ((grandTotalNotStarted / grandTotalRoster) * 100).toFixed(1) : '0.0';
 
         document.getElementById('teamsTotalAgentsIn').innerText = grandTotalAgentsIn;
         document.getElementById('teamsGlobalUnexpectedPct').innerText = `${globalUnexpectedPct}%`;
         document.getElementById('teamsGlobalLatesPct').innerText = `${globalLatesPct}%`;
+        document.getElementById('teamsGlobalNotStartedPct').innerText = `${globalNotStartedPct}%`;
 
         if (teamRows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No teams found for the selected filter.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #b0bec5;">No teams found for the selected filter.</td></tr>';
             return;
         }
 
         tbody.innerHTML = '';
         teamRows.forEach(item => {
             const row = document.createElement('tr');
-            const teamClass = getTeamClass(item.rawTeam);
+            const deptCountryClass = deptCountryClassMap[item.country] || '';
             const unexpBadgeClass = item.unexpectedPct > 0 ? 'pct-badge pct-alert' : 'pct-badge pct-zero';
             const latesBadgeClass = item.latesPct > 0 ? 'pct-badge pct-warn' : 'pct-badge pct-zero';
+            const notStartedBadgeClass = item.notStartedPct > 0 ? 'pct-badge pct-info' : 'pct-badge pct-zero';
 
             row.innerHTML = `
-                <td class="${teamClass}">${item.label}</td>
+                <td class="${deptCountryClass}">${item.label}</td>
                 <td style="text-align: center; font-weight: bold; font-size: 1.05rem;">${item.agentsIn}</td>
-                <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.scheduledCount} scheduled">
+                <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.startedScheduledCount} started/scheduled">
                     <span class="${unexpBadgeClass}">${item.unexpectedPct.toFixed(1)}%</span>
                 </td>
-                <td style="text-align: center;" title="${item.latesCount} late(s) out of ${item.scheduledCount} scheduled">
+                <td style="text-align: center;" title="${item.latesCount} late(s) out of ${item.startedScheduledCount} started/scheduled">
                     <span class="${latesBadgeClass}">${item.latesPct.toFixed(1)}%</span>
+                </td>
+                <td style="text-align: center;" title="${item.notStartedCount} agent(s) in N/A out of ${item.totalActiveRosterToday} scheduled today">
+                    <span class="${notStartedBadgeClass}">${item.notStartedPct.toFixed(1)}%</span>
                 </td>
             `;
             tbody.appendChild(row);
