@@ -2092,7 +2092,7 @@
         });
     }
 
-    /* --- COPY TEAMS TABLE WITH CLEAN FORMATTING (HTML + PLAIN FALLBACK) --- */
+    /* --- COPY TEAMS TABLE WITH CLEAN CENTERED FORMATTING (HTML + PLAIN FALLBACK) --- */
     async function copyTeamsTable() {
         if (!currentTeamsRows || currentTeamsRows.length === 0) {
             alert("There are no rows to copy for the selected date/filter.");
@@ -2110,13 +2110,12 @@
             "AGENTS WITH SHIFT NOT STARTED"
         ];
 
-        const baseCellStyle = "border: 1px solid #8c8c8c; padding: 7px 10px; font-family: Calibri, Arial, sans-serif; font-size: 11pt; vertical-align: middle;";
-        const headerCellStyle = "border: 1px solid #01579b; background-color: #0277bd; color: #ffffff; font-weight: bold; text-align: center; padding: 8px 10px; font-family: Calibri, Arial, sans-serif; font-size: 11pt;";
+        const baseCellStyle = "border: 1px solid #8c8c8c; padding: 7px 10px; font-family: Calibri, Arial, sans-serif; font-size: 11pt; vertical-align: middle; text-align: center;";
+        const headerCellStyle = "border: 1px solid #01579b; background-color: #0277bd; color: #ffffff; font-weight: bold; text-align: center; vertical-align: middle; padding: 8px 10px; font-family: Calibri, Arial, sans-serif; font-size: 11pt;";
 
         let htmlRows = `<tr>`;
-        headers.forEach((h, i) => {
-            const align = i === 0 ? "text-align: left;" : "text-align: center;";
-            htmlRows += `<th style="${headerCellStyle} ${align}">${escapeHtml(h)}</th>`;
+        headers.forEach((h) => {
+            htmlRows += `<th align="center" style="${headerCellStyle}">${escapeHtml(h)}</th>`;
         });
         htmlRows += `</tr>`;
 
@@ -2158,14 +2157,14 @@
 
             htmlRows += `
                 <tr>
-                    <td style="${baseCellStyle} ${deptInlineStyle} font-weight: bold; text-align: left;">${escapeHtml(item.label)}</td>
-                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: center; font-weight: bold;">${item.agentsIn}</td>
-                    <td style="${baseCellStyle} background-color: ${rowBg}; text-align: center; ${latesStyle}">${latesText}</td>
-                    <td style="${baseCellStyle} background-color: ${rowBg}; text-align: center; ${unexpStyle}">${unexpText}</td>
-                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: left;">${unexpHtml}</td>
-                    <td style="${baseCellStyle} background-color: ${rowBg}; text-align: center; ${expStyle}">${expText}</td>
-                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: left;">${expHtml}</td>
-                    <td style="${baseCellStyle} background-color: ${rowBg}; color: #000000; text-align: center; font-weight: bold;">${item.notStartedCount}</td>
+                    <td align="center" style="${baseCellStyle} ${deptInlineStyle} font-weight: bold;">${escapeHtml(item.label)}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; color: #000000; font-weight: bold;">${item.agentsIn}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; ${latesStyle}">${latesText}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; ${unexpStyle}">${unexpText}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; color: #000000;">${unexpHtml}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; ${expStyle}">${expText}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; color: #000000;">${expHtml}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; color: #000000; font-weight: bold;">${item.notStartedCount}</td>
                 </tr>
             `;
 
@@ -2181,7 +2180,7 @@
             ].join("\t"));
         });
 
-        const fullHtmlTable = `<table border="1" cellspacing="0" cellpadding="6" style="border-collapse: collapse; border: 1px solid #8c8c8c; font-family: Calibri, Arial, sans-serif; font-size: 11pt;">${htmlRows}</table>`;
+        const fullHtmlTable = `<table border="1" cellspacing="0" cellpadding="6" style="border-collapse: collapse; border: 1px solid #8c8c8c; font-family: Calibri, Arial, sans-serif; font-size: 11pt; text-align: center;">${htmlRows}</table>`;
         const fullPlainText = plainRows.join("\n");
 
         let copied = false;
@@ -2230,7 +2229,7 @@
         }
 
         if (copied) {
-            showToast("Table copied with formatting! Ready to paste.");
+            showToast("Table copied with centered formatting! Ready to paste.");
             const btn = document.getElementById("copyTeamsTableBtn");
             if (btn) {
                 const originalHtml = btn.innerHTML;
