@@ -13,6 +13,7 @@
             --primary-color: #0d6efd;
             --success-color: #198754;
             --excel-color: #107c41;
+            --teams-color: #0288d1;
             --warning-color: #ffc107;
             --danger-color: #dc3545;
             --global-color: #6f42c1;
@@ -168,6 +169,8 @@
         .btn-save:hover { background-color: #157347; }
         .btn-excel { background-color: var(--excel-color); }
         .btn-excel:hover { background-color: #0b5c30; }
+        .btn-teams { background-color: var(--teams-color); }
+        .btn-teams:hover { background-color: #0277bd; }
         .btn-stats { background-color: var(--global-color); }
         .btn-stats:hover { background-color: #59319c; }
         .btn-back { background-color: #6c757d; }
@@ -283,6 +286,7 @@
         .header-panama      { background-color: #800020 !important; color: #ffffff !important; }
         .header-jamaica     { background-color: #ffd600 !important; color: #000000 !important; }
         .header-philippines { background-color: #6a1b9a !important; color: #ffffff !important; }
+        .header-teams       { background-color: #0277bd !important; color: #ffffff !important; }
 
         select.cell-select, input[type="text"] {
             width: 100%;
@@ -473,6 +477,20 @@
             border: 1px solid #334466;
         }
 
+        .pct-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+        .pct-zero { background-color: rgba(25, 135, 84, 0.25); color: #75b798; }
+        body.light-mode .pct-zero { background-color: rgba(25, 135, 84, 0.2); color: #0f5132; }
+        .pct-alert { background-color: rgba(220, 53, 69, 0.25); color: #ea868f; }
+        body.light-mode .pct-alert { background-color: rgba(220, 53, 69, 0.2); color: #842029; }
+        .pct-warn { background-color: rgba(255, 193, 7, 0.25); color: #ffda6a; }
+        body.light-mode .pct-warn { background-color: rgba(255, 193, 7, 0.35); color: #664d03; }
+
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -580,6 +598,7 @@
 
                 <button class="btn btn-save" onclick="saveData()">💾 SAVE THE DAY</button>
                 <button class="btn btn-excel" onclick="exportToExcel()">📊 Download Excel</button>
+                <button class="btn btn-teams" onclick="showTeamsView()">📋 See Teams %</button>
                 <button class="btn btn-stats" onclick="showStatsView()">📈 Statistics of the Month</button>
             </div>
         </div>
@@ -645,6 +664,69 @@
         </div>
     </div>
 
+    <!-- TEAMS % VIEW -->
+    <div id="teamsView" style="display: none;">
+        <div class="header">
+            <div class="header-title-container">
+                <div class="title-emoji"><i class="fa-solid fa-users"></i></div>
+                <h1 class="main-header-title">TEAMS ATTENDANCE SUMMARY (%)</h1>
+            </div>
+
+            <div class="controls">
+                <div class="selector-group">
+                    <label for="teamsDateSelect">DATE:</label>
+                    <input type="date" id="teamsDateSelect" onchange="loadTeamsTable()">
+                </div>
+
+                <div class="selector-group">
+                    <label for="teamsCountryFilter">COUNTRY:</label>
+                    <select id="teamsCountryFilter" class="nav-select" onchange="loadTeamsTable()">
+                        <option value="ALL" selected>All Countries</option>
+                        <option value="Colombia">Colombia</option>
+                        <option value="Guatemala">Guatemala</option>
+                        <option value="Jamaica">Jamaica</option>
+                        <option value="Mexico">Mexico</option>
+                        <option value="Panama">Panama</option>
+                        <option value="Philippines">Philippines</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-back" onclick="showMainView()"><i class="fa-solid fa-arrow-left"></i> Back to Attendance Table</button>
+            </div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card attended">
+                <div class="stat-title">Total Agents In</div>
+                <div class="stat-value" id="teamsTotalAgentsIn">0</div>
+            </div>
+            <div class="stat-card not-present">
+                <div class="stat-title">Global % of Unexpected Absences</div>
+                <div class="stat-value" id="teamsGlobalUnexpectedPct">0.0%</div>
+            </div>
+            <div class="stat-card lates">
+                <div class="stat-title">Global % of Lates</div>
+                <div class="stat-value" id="teamsGlobalLatesPct">0.0%</div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="header-teams" style="text-align: left !important;">DEPARTMENT - COUNTRY</th>
+                        <th class="header-teams">NUMBER OF AGENTS IN</th>
+                        <th class="header-teams">% OF UNEXPECTED ABSENCES</th>
+                        <th class="header-teams">% OF LATES</th>
+                    </tr>
+                </thead>
+                <tbody id="teamsTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MONTHLY STATISTICS VIEW -->
     <div id="statsView" style="display: none;">
         <div class="header">
             <div class="header-title-container">
@@ -724,7 +806,7 @@
 
     async function requestStoragePersistence() {
         if (navigator.storage && navigator.storage.persist) {
-            const isPersisted = await navigator.storage.persisted();
+            const isPersisted = await navigator.storage.persist();
             if (!isPersisted) {
                 await navigator.storage.persist();
             }
@@ -940,6 +1022,15 @@
         ]
     };
 
+    const countryShortCode = {
+        "Colombia": "COL",
+        "Guatemala": "GUA",
+        "Jamaica": "JAM",
+        "Mexico": "MEX",
+        "Panama": "PAN",
+        "Philippines": "PHI"
+    };
+
     async function getCountryEmployees(country) {
         const stored = await dbGet(STORE_EMPLOYEES, country);
         if (stored && Array.isArray(stored) && stored.length > 0) {
@@ -999,6 +1090,16 @@
 
     function cleanString(str) {
         return str ? str.toString().toUpperCase().replace(/[^A-Z]/g, '') : '';
+    }
+
+    function normalizeTeamLabel(teamName) {
+        if (!teamName) return 'UNASSIGNED';
+        return teamName
+            .toString()
+            .trim()
+            .replace(/\s*-\s*/g, ' ')
+            .replace(/\s+/g, ' ')
+            .toUpperCase();
     }
 
     function getTeamClass(teamName) {
@@ -1600,6 +1701,10 @@
             await dbPut(STORE_ATTENDANCE, "id", storageKey, dataToSave);
             showToast(`${country} attendance saved for ${selectedDate}!`);
             updateCounters();
+            // Keep Teams % summary synchronized as attendance is saved during the day
+            if (document.getElementById('teamsView').style.display === 'block') {
+                await loadTeamsTable();
+            }
         } catch (error) {
             console.error("Error saving to IndexedDB:", error);
             alert("Error saving: " + error.message);
@@ -1711,8 +1816,129 @@
     const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
     let activeStatsBranch = countrySelect.value || "Guatemala";
 
+    /* --- TEAMS % VIEW & ENGINE --- */
+    function showTeamsView() {
+        document.getElementById('mainAttendanceView').style.display = 'none';
+        document.getElementById('statsView').style.display = 'none';
+        document.getElementById('teamsView').style.display = 'block';
+
+        const teamsDateInput = document.getElementById('teamsDateSelect');
+        if (dateInput && dateInput.value) {
+            teamsDateInput.value = dateInput.value;
+        }
+        loadTeamsTable();
+    }
+
+    async function loadTeamsTable() {
+        const tbody = document.getElementById('teamsTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
+
+        const selectedDate = document.getElementById('teamsDateSelect').value || dateInput.value;
+        const countryFilter = document.getElementById('teamsCountryFilter').value;
+
+        const targetCountries = countryFilter === 'ALL'
+            ? ["Guatemala", "Colombia", "Jamaica", "Mexico", "Panama", "Philippines"]
+            : [countryFilter];
+
+        const teamRows = [];
+        let grandTotalAgentsIn = 0;
+        let grandTotalUnexpected = 0;
+        let grandTotalLates = 0;
+
+        for (const country of targetCountries) {
+            const storageKey = `attendance_${country}_${selectedDate}`;
+            const savedData = await dbGet(STORE_ATTENDANCE, storageKey) || {};
+            const employees = await getCountryEmployees(country);
+            const code = countryShortCode[country] || country.toUpperCase().slice(0, 3);
+
+            // Group agents by normalized department/team within this country
+            const deptMap = new Map();
+
+            employees.forEach((emp, idx) => {
+                const rawTeam = emp.team || 'Unassigned';
+                const normTeam = normalizeTeamLabel(rawTeam);
+
+                if (!deptMap.has(normTeam)) {
+                    deptMap.set(normTeam, {
+                        label: `${normTeam} - ${code}`,
+                        rawTeam: rawTeam,
+                        agentsIn: 0,
+                        unexpectedCount: 0,
+                        latesCount: 0
+                    });
+                }
+
+                const entry = deptMap.get(normTeam);
+                const record = savedData[idx];
+                const statusVal = (record && typeof record.status === 'string') ? record.status.trim().toUpperCase() : '';
+
+                if (attendedStatuses.includes(statusVal)) {
+                    entry.agentsIn += 1;
+                }
+                if (unexpectedAbsences.includes(statusVal)) {
+                    entry.unexpectedCount += 1;
+                }
+                if (statusVal === 'LATE' || statusVal === 'LATE JUSTIFIED (BACK UP DOC.)') {
+                    entry.latesCount += 1;
+                }
+            });
+
+            deptMap.forEach((stats) => {
+                const scheduledCount = stats.agentsIn + stats.unexpectedCount;
+                const unexpectedPct = scheduledCount > 0 ? ((stats.unexpectedCount / scheduledCount) * 100) : 0;
+                const latesPct = scheduledCount > 0 ? ((stats.latesCount / scheduledCount) * 100) : 0;
+
+                grandTotalAgentsIn += stats.agentsIn;
+                grandTotalUnexpected += stats.unexpectedCount;
+                grandTotalLates += stats.latesCount;
+
+                teamRows.push({
+                    ...stats,
+                    scheduledCount,
+                    unexpectedPct,
+                    latesPct
+                });
+            });
+        }
+
+        // Update top summary KPI cards
+        const grandScheduled = grandTotalAgentsIn + grandTotalUnexpected;
+        const globalUnexpectedPct = grandScheduled > 0 ? ((grandTotalUnexpected / grandScheduled) * 100).toFixed(1) : '0.0';
+        const globalLatesPct = grandScheduled > 0 ? ((grandTotalLates / grandScheduled) * 100).toFixed(1) : '0.0';
+
+        document.getElementById('teamsTotalAgentsIn').innerText = grandTotalAgentsIn;
+        document.getElementById('teamsGlobalUnexpectedPct').innerText = `${globalUnexpectedPct}%`;
+        document.getElementById('teamsGlobalLatesPct').innerText = `${globalLatesPct}%`;
+
+        if (teamRows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #b0bec5;">No teams found for the selected filter.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        teamRows.forEach(item => {
+            const row = document.createElement('tr');
+            const teamClass = getTeamClass(item.rawTeam);
+            const unexpBadgeClass = item.unexpectedPct > 0 ? 'pct-badge pct-alert' : 'pct-badge pct-zero';
+            const latesBadgeClass = item.latesPct > 0 ? 'pct-badge pct-warn' : 'pct-badge pct-zero';
+
+            row.innerHTML = `
+                <td class="${teamClass}">${item.label}</td>
+                <td style="text-align: center; font-weight: bold; font-size: 1.05rem;">${item.agentsIn}</td>
+                <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.scheduledCount} scheduled">
+                    <span class="${unexpBadgeClass}">${item.unexpectedPct.toFixed(1)}%</span>
+                </td>
+                <td style="text-align: center;" title="${item.latesCount} late(s) out of ${item.scheduledCount} scheduled">
+                    <span class="${latesBadgeClass}">${item.latesPct.toFixed(1)}%</span>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
     function showStatsView() {
         document.getElementById('mainAttendanceView').style.display = 'none';
+        document.getElementById('teamsView').style.display = 'none';
         document.getElementById('statsView').style.display = 'block';
         activeStatsBranch = countrySelect.value;
         renderBranchTabs();
@@ -1721,6 +1947,7 @@
 
     function showMainView() {
         document.getElementById('statsView').style.display = 'none';
+        document.getElementById('teamsView').style.display = 'none';
         document.getElementById('mainAttendanceView').style.display = 'block';
         updateCounters();
     }
