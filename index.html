@@ -1562,7 +1562,7 @@
     }
 
     const statusOptions = [
-        "", "N/A", "ATTENDED", "DAY OFF", "LATE", "LATE JUSTIFIED (BACK UP DOC.)",
+        "N/A", "ATTENDED", "DAY OFF", "LATE", "LATE JUSTIFIED (BACK UP DOC.)",
         "SICK DAY", "SCHEDULE MEDICAL APPOINTMENT", "ESCALATED TO SST", "VACATION",
         "LOA", "ABSENT", "NO CALL/NO SHOW", "EARLY OUT", "FLOATING HOLIDAY",
         "EMERGENCY DAY OFF", "DISCIPLINARY SUSPENSION", "US HOLIDAY", "COUNTRY HOLIDAY",
@@ -1870,7 +1870,7 @@
 
         const selects = document.querySelectorAll('.cell-select');
         selects.forEach(select => {
-            const val = select ? select.value : '';
+            const val = select ? select.value : 'N/A';
             if (attendedStatuses.includes(val)) attendedCount++;
             if (val === 'LATE' || val === 'LATE JUSTIFIED (BACK UP DOC.)') latesCount++;
             if (notPresentStatuses.includes(val)) notPresentCount++;
@@ -1909,16 +1909,16 @@
             const employees = await getCountryEmployees(c);
 
             employees.forEach((_, idx) => {
-                let statusVal = '';
+                let statusVal = 'N/A';
                 if (c === currentCountry) {
                     const sel = document.getElementById(`status_${idx}`);
                     if (sel) {
-                        statusVal = sel.value;
-                    } else if (savedData && savedData[idx] && typeof savedData[idx].status === 'string') {
+                        statusVal = sel.value || 'N/A';
+                    } else if (savedData && savedData[idx] && typeof savedData[idx].status === 'string' && savedData[idx].status.trim() !== '') {
                         statusVal = savedData[idx].status;
                     }
                 } else {
-                    if (savedData && savedData[idx] && typeof savedData[idx].status === 'string') {
+                    if (savedData && savedData[idx] && typeof savedData[idx].status === 'string' && savedData[idx].status.trim() !== '') {
                         statusVal = savedData[idx].status;
                     }
                 }
@@ -1989,7 +1989,7 @@
             row.addEventListener('drop', (e) => handleDrop(e, index));
             row.addEventListener('dragend', handleDragEnd);
 
-            const savedStatus = (savedData && savedData[index] && savedData[index].status) ? savedData[index].status : '';
+            const savedStatus = (savedData && savedData[index] && savedData[index].status && savedData[index].status.trim() !== '') ? savedData[index].status : 'N/A';
             const savedComments = (savedData && savedData[index] && savedData[index].comments) ? savedData[index].comments : '';
 
             let optionsHtml = statusOptions.map(opt => 
@@ -2089,7 +2089,7 @@
                 const s = document.getElementById(`status_${i}`);
                 const c = document.getElementById(`comments_${i}`);
                 return {
-                    status: s ? s.value : '',
+                    status: (s && s.value) ? s.value : 'N/A',
                     comments: c ? c.value : ''
                 };
             });
@@ -2260,7 +2260,7 @@
             const statusElem = document.getElementById(`status_${index}`);
             const commentsElem = document.getElementById(`comments_${index}`);
 
-            const status = (statusElem && statusElem.value) ? statusElem.value.trim() : '';
+            const status = (statusElem && statusElem.value) ? statusElem.value.trim() : 'N/A';
             const comments = (commentsElem && commentsElem.value) ? commentsElem.value.trim() : '';
 
             dataToSave[index] = { status: status, comments: comments };
@@ -2303,7 +2303,7 @@
         const rows = [headers];
 
         employees.forEach((emp, index) => {
-            const statusVal = document.getElementById(`status_${index}`) ? document.getElementById(`status_${index}`).value : '';
+            const statusVal = document.getElementById(`status_${index}`) ? document.getElementById(`status_${index}`).value : 'N/A';
             const commentsVal = document.getElementById(`comments_${index}`) ? document.getElementById(`comments_${index}`).value : '';
 
             rows.push([
@@ -2458,7 +2458,7 @@
 
                 const entry = deptMap.get(normTeam);
                 const record = savedData[idx];
-                const statusVal = (record && typeof record.status === 'string') ? record.status.trim().toUpperCase() : '';
+                const statusVal = (record && typeof record.status === 'string' && record.status.trim() !== '') ? record.status.trim().toUpperCase() : 'N/A';
                 const commentVal = (record && typeof record.comments === 'string') ? record.comments.trim() : '';
 
                 if (attendedStatuses.includes(statusVal)) {
