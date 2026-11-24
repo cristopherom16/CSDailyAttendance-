@@ -127,6 +127,35 @@
             font-size: 1.8rem;
         }
 
+        .no-country-placeholder {
+            background-color: var(--input-bg);
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 55px 25px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .no-country-placeholder i {
+            font-size: 3rem;
+            color: var(--amber-color);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .no-country-placeholder h2 {
+            margin: 0 0 10px 0;
+            color: var(--amber-color);
+            font-size: 1.45rem;
+        }
+
+        .no-country-placeholder p {
+            margin: 0;
+            color: var(--stat-title-color);
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
         .controls {
             display: flex;
             align-items: center;
@@ -699,8 +728,9 @@
                 <div class="selector-group">
                     <label for="countrySelect">COUNTRY:</label>
                     <select id="countrySelect" class="nav-select">
+                        <option value="" selected>-- Select Country --</option>
                         <option value="Colombia">Colombia</option>
-                        <option value="Guatemala" selected>Guatemala</option>
+                        <option value="Guatemala">Guatemala</option>
                         <option value="Jamaica">Jamaica</option>
                         <option value="Mexico">Mexico</option>
                         <option value="Panama">Panama</option>
@@ -733,12 +763,18 @@
             </div>
         </div>
 
-        <div class="section-header-flex">
+        <div id="noCountryPlaceholder" class="no-country-placeholder">
+            <i class="fa-solid fa-lock"></i>
+            <h2>Select a Country to View Attendance</h2>
+            <p>Choose a country from the <strong>COUNTRY</strong> dropdown above and enter its password to load the attendance table.</p>
+        </div>
+
+        <div id="countryHeaderSection" class="section-header-flex" style="display: none;">
             <h1 id="pageTitle" class="section-title-country">Daily Attendance</h1>
             <button class="btn btn-add-agent" onclick="addAgent()"><i class="fa-solid fa-user-plus"></i> Add an Agent</button>
         </div>
 
-        <div class="stats-container">
+        <div id="countryStatsSection" class="stats-container" style="display: none;">
             <div class="stat-card attended">
                 <div class="stat-title">Total Agents Attended on time</div>
                 <div class="stat-value" id="countAttended">0</div>
@@ -761,7 +797,7 @@
             </div>
         </div>
 
-        <div class="table-responsive">
+        <div id="attendanceTableWrapper" class="table-responsive" style="display: none;">
             <table>
                 <thead>
                     <tr id="tableHeaderRow">
@@ -1278,7 +1314,7 @@
                 if (isSavingLocally) return;
                 let changedCurrent = false;
                 const batchUpdates = [];
-                const activeKey = `attendance_${countrySelect.value}_${dateInput.value}`;
+                const activeKey = countrySelect.value ? `attendance_${countrySelect.value}_${dateInput.value}` : '';
 
                 snapshot.docChanges().forEach(change => {
                     if (change.doc.metadata && change.doc.metadata.hasPendingWrites) return;
@@ -1286,7 +1322,7 @@
                     if (d && d.data !== undefined) {
                         const idVal = d.id || change.doc.id;
                         batchUpdates.push({ key: idVal, value: d.data });
-                        if (idVal === activeKey) changedCurrent = true;
+                        if (activeKey && idVal === activeKey) changedCurrent = true;
                     }
                 });
 
@@ -1320,7 +1356,7 @@
                     if (d && d.data !== undefined) {
                         const cVal = d.country || change.doc.id;
                         batchUpdates.push({ key: cVal, value: d.data });
-                        if (cVal === countrySelect.value) changedCurrent = true;
+                        if (countrySelect.value && cVal === countrySelect.value) changedCurrent = true;
                     }
                 });
 
@@ -1708,7 +1744,7 @@
         "Philippines": "HwyPHI2023"
     };
 
-    let previousCountry = countrySelect.value;
+    let previousCountry = "";
     let draggedIndex = null;
     let authCallback = null;
     let currentTeamsRows = [];
@@ -1790,6 +1826,12 @@
 
     countrySelect.addEventListener('change', function () {
         const selectedCountry = this.value;
+        if (!selectedCountry) {
+            previousCountry = "";
+            renderCurrentTable();
+            return;
+        }
+
         const requiredPassword = passwordsByCountry[selectedCountry];
 
         promptPassword("Please enter your Country Password", function(inputPassword) {
@@ -1799,11 +1841,12 @@
             } else {
                 alert("Incorrect password. Access denied.");
                 countrySelect.value = previousCountry;
+                renderCurrentTable();
             }
         });
     });
 
-    // Render immediately from local storage/IndexedDB first, then sync with Firebase silently
+    // Render immediately (default view without table until a country is selected & unlocked), then sync with Firebase silently
     renderCurrentTable();
     dateInput.addEventListener('change', renderCurrentTable);
     setTimeout(() => { syncWithFirebase(); }, 200);
@@ -1898,6 +1941,25 @@
     async function renderCurrentTable() {
         const country = countrySelect.value;
         const selectedDate = dateInput.value;
+        const placeholder = document.getElementById('noCountryPlaceholder');
+        const headerSection = document.getElementById('countryHeaderSection');
+        const statsSection = document.getElementById('countryStatsSection');
+        const tableWrapper = document.getElementById('attendanceTableWrapper');
+
+        if (!country) {
+            tableBody.innerHTML = '';
+            if (placeholder) placeholder.style.display = 'block';
+            if (headerSection) headerSection.style.display = 'none';
+            if (statsSection) statsSection.style.display = 'none';
+            if (tableWrapper) tableWrapper.style.display = 'none';
+            updateCounters();
+            return;
+        }
+
+        if (placeholder) placeholder.style.display = 'none';
+        if (headerSection) headerSection.style.display = 'flex';
+        if (statsSection) statsSection.style.display = 'flex';
+        if (tableWrapper) tableWrapper.style.display = 'block';
         
         pageTitle.innerText = `Daily Attendance - ${countrySelect.options[countrySelect.selectedIndex].text}`;
         
@@ -2152,6 +2214,10 @@
             if (!isAuthorized) return;
 
             const country = countrySelect.value;
+            if (!country) {
+                alert("Please select a country first.");
+                return;
+            }
             const employees = await getCountryEmployees(country);
 
             const newAgent = {
@@ -2176,6 +2242,11 @@
     async function saveData() {
         const country = countrySelect ? countrySelect.value : '';
         const selectedDate = dateInput ? dateInput.value : '';
+
+        if (!country) {
+            alert("Please select a country first.");
+            return;
+        }
 
         if (!selectedDate) {
             alert("Please select a date.");
@@ -2215,6 +2286,11 @@
     async function exportToExcel() {
         const country = countrySelect.value;
         const selectedDate = dateInput.value;
+
+        if (!country) {
+            alert("Please select a country first.");
+            return;
+        }
 
         if (!selectedDate) {
             alert("Please select a date.");
@@ -2315,19 +2391,23 @@
     }
 
     const branches = ["Colombia", "Guatemala", "Jamaica", "Mexico", "Panama", "Philippines"];
-    let activeStatsBranch = countrySelect.value || "Guatemala";
+    let activeStatsBranch = "Guatemala";
 
     /* --- TEAMS % VIEW & ENGINE (BY DEPARTMENT - COUNTRY) --- */
     function showTeamsView() {
-        document.getElementById('mainAttendanceView').style.display = 'none';
-        document.getElementById('statsView').style.display = 'none';
-        document.getElementById('teamsView').style.display = 'block';
+        checkAdminPassword(function(isAuthorized) {
+            if (!isAuthorized) return;
 
-        const teamsDateInput = document.getElementById('teamsDateSelect');
-        if (dateInput && dateInput.value) {
-            teamsDateInput.value = dateInput.value;
-        }
-        loadTeamsTable();
+            document.getElementById('mainAttendanceView').style.display = 'none';
+            document.getElementById('statsView').style.display = 'none';
+            document.getElementById('teamsView').style.display = 'block';
+
+            const teamsDateInput = document.getElementById('teamsDateSelect');
+            if (dateInput && dateInput.value) {
+                teamsDateInput.value = dateInput.value;
+            }
+            loadTeamsTable();
+        });
     }
 
     async function loadTeamsTable() {
@@ -2656,12 +2736,16 @@
     }
 
     function showStatsView() {
-        document.getElementById('mainAttendanceView').style.display = 'none';
-        document.getElementById('teamsView').style.display = 'none';
-        document.getElementById('statsView').style.display = 'block';
-        activeStatsBranch = countrySelect.value;
-        renderBranchTabs();
-        loadBranchStats(activeStatsBranch);
+        checkAdminPassword(function(isAuthorized) {
+            if (!isAuthorized) return;
+
+            document.getElementById('mainAttendanceView').style.display = 'none';
+            document.getElementById('teamsView').style.display = 'none';
+            document.getElementById('statsView').style.display = 'block';
+            activeStatsBranch = countrySelect.value || "Guatemala";
+            renderBranchTabs();
+            loadBranchStats(activeStatsBranch);
+        });
     }
 
     function showMainView() {
