@@ -437,8 +437,6 @@
         }
 
         .time-cell {
-            background-color: #f0f0f0 !important;
-            color: #000000 !important;
             font-weight: bold !important;
             text-align: center !important;
         }
@@ -516,12 +514,12 @@
         td.sup-eduardo-bellamy     { background-color: #d32f2f !important; color: #ffffff !important; font-weight: bold; }
         td.sup-jenny-jakosalem     { background-color: #8e24aa !important; color: #ffffff !important; font-weight: bold; }
 
-        .country-guatemala   { background-color: #bbdefb; color: #000; }
-        .country-colombia    { background-color: #ffe0b2; color: #000; }
-        .country-philippines { background-color: #e1bee7; color: #000; }
-        .country-panama      { background-color: #ffcdd2; color: #000; }
-        .country-jamaica     { background-color: #fff9c4; color: #000; }
-        .country-mexico      { background-color: #c8e6c9; color: #000; }
+        .country-guatemala   { background-color: #bbdefb !important; color: #000000 !important; }
+        .country-colombia    { background-color: #ffe0b2 !important; color: #000000 !important; }
+        .country-philippines { background-color: #e1bee7 !important; color: #000000 !important; }
+        .country-panama      { background-color: #ffcdd2 !important; color: #000000 !important; }
+        .country-jamaica     { background-color: #fff9c4 !important; color: #000000 !important; }
+        .country-mexico      { background-color: #c8e6c9 !important; color: #000000 !important; }
 
         /* Country-based colors for Department - Country column in See Teams % */
         td.dept-country-guatemala   { background-color: #81d4fa !important; color: #000000 !important; font-weight: 800 !important; }
@@ -544,6 +542,8 @@
         select.status-absent           { background-color: #cc0000 !important; color: #ffffff !important; font-weight: bold; }
         select.status-no-call-no-show  { background-color: #4a0e17 !important; color: #ffffff !important; font-weight: bold; }
         select.status-early-out        { background-color: #90caf9 !important; color: #000000 !important; }
+        select.status-authorized-late-in,
+        .status-authorized-late-in     { background-color: #f8bbd0 !important; color: #000000 !important; font-weight: bold !important; }
         select.status-floating-holiday { background-color: #ce93d8 !important; color: #000000 !important; }
         select.status-emergency-day-off { background-color: #aa00ff !important; color: #ffffff !important; }
         select.status-disciplinary-suspension { background-color: #616161 !important; color: #ffffff !important; }
@@ -606,6 +606,22 @@
         body.light-mode .pct-warn { background-color: rgba(255, 193, 7, 0.35); color: #664d03; }
         .pct-expected { background-color: rgba(13, 110, 253, 0.25); color: #6ea8fe; }
         body.light-mode .pct-expected { background-color: rgba(13, 110, 253, 0.2); color: #084298; }
+
+        .late-detail-item {
+            display: block;
+            padding: 4px 8px;
+            margin: 3px 0;
+            border-radius: 4px;
+            background-color: rgba(255, 193, 7, 0.18);
+            border-left: 3px solid #ffc107;
+            font-size: 0.85rem;
+            line-height: 1.3;
+        }
+        body.light-mode .late-detail-item {
+            background-color: rgba(255, 193, 7, 0.25);
+            border-left-color: #d97706;
+            color: #001f3f;
+        }
 
         .absence-detail-item {
             display: block;
@@ -879,6 +895,7 @@
                         <th class="header-teams" style="text-align: left !important;">DEPARTMENT - COUNTRY</th>
                         <th class="header-teams">NUMBER OF AGENTS IN</th>
                         <th class="header-teams">% OF LATES</th>
+                        <th class="header-teams" style="min-width: 240px;">TYPE OF LATE (AGENT &amp; REASON)</th>
                         <th class="header-teams">% OF UNEXPECTED ABSENCES</th>
                         <th class="header-teams" style="min-width: 240px;">UNEXPECTED ABSENCES (AGENT & REASON)</th>
                         <th class="header-teams">% OF EXPECTED ABSENCES</th>
@@ -949,6 +966,7 @@
                     <option value="SICK DAY">SICK DAY</option>
                     <option value="EMERGENCY DAY OFF">EMERGENCY DAY OFF</option>
                     <option value="EARLY OUT">EARLY OUT</option>
+                    <option value="AUTHORIZED LATE IN">AUTHORIZED LATE IN</option>
                     <option value="DISCIPLINARY SUSPENSION">DISCIPLINARY SUSPENSION</option>
                 </select>
             </div>
@@ -1564,7 +1582,7 @@
     const statusOptions = [
         "N/A", "ATTENDED", "DAY OFF", "LATE", "LATE JUSTIFIED (BACK UP DOC.)",
         "SICK DAY", "SCHEDULE MEDICAL APPOINTMENT", "ESCALATED TO SST", "VACATION",
-        "LOA", "ABSENT", "NO CALL/NO SHOW", "EARLY OUT", "FLOATING HOLIDAY",
+        "LOA", "ABSENT", "NO CALL/NO SHOW", "EARLY OUT", "AUTHORIZED LATE IN", "FLOATING HOLIDAY",
         "EMERGENCY DAY OFF", "DISCIPLINARY SUSPENSION", "US HOLIDAY", "COUNTRY HOLIDAY",
         "BEREAVEMENT LEAVE", "MARRIAGE/MA/PATERNITY LEAVING", "LEGAL PROCESS"
     ];
@@ -1575,7 +1593,7 @@
         "SICK DAY": "status-sick-day", "SCHEDULE MEDICAL APPOINTMENT": "status-medical-appointment",
         "ESCALATED TO SST": "status-escalated-sst", "VACATION": "status-vacation",
         "LOA": "status-loa", "ABSENT": "status-absent", "NO CALL/NO SHOW": "status-no-call-no-show",
-        "EARLY OUT": "status-early-out", "FLOATING HOLIDAY": "status-floating-holiday",
+        "EARLY OUT": "status-early-out", "AUTHORIZED LATE IN": "status-authorized-late-in", "FLOATING HOLIDAY": "status-floating-holiday",
         "EMERGENCY DAY OFF": "status-emergency-day-off", "DISCIPLINARY SUSPENSION": "status-disciplinary-suspension",
         "US HOLIDAY": "status-us-holiday", "COUNTRY HOLIDAY": "status-country-holiday",
         "BEREAVEMENT LEAVE": "status-bereavement-leave",
@@ -1589,7 +1607,7 @@
     };
 
     const attendedStatuses = [
-        "ATTENDED", "LATE", "LATE JUSTIFIED (BACK UP DOC.)", "EARLY OUT"
+        "ATTENDED", "LATE", "LATE JUSTIFIED (BACK UP DOC.)", "AUTHORIZED LATE IN", "EARLY OUT"
     ];
 
     const expectedAbsences = [
@@ -1689,6 +1707,17 @@
         if (clean === 'JAMAICA') return { fill: "FFD600", color: "000000" };
         if (clean === 'PHILIPPINES') return { fill: "6A1B9A", color: "FFFFFF" };
         return { fill: "808080", color: "000000" };
+    }
+
+    function getCountryNameExcelStyle(countryName) {
+        const clean = cleanString(countryName);
+        if (clean === 'GUATEMALA') return { fill: "BBDEFB", color: "000000" };
+        if (clean === 'COLOMBIA') return { fill: "FFE0B2", color: "000000" };
+        if (clean === 'PHILIPPINES') return { fill: "E1BEE7", color: "000000" };
+        if (clean === 'PANAMA') return { fill: "FFCDD2", color: "000000" };
+        if (clean === 'JAMAICA') return { fill: "FFF9C4", color: "000000" };
+        if (clean === 'MEXICO') return { fill: "C8E6C9", color: "000000" };
+        return { fill: "F0F0F0", color: "000000" };
     }
 
     function getTeamExcelStyle(teamName) {
@@ -1872,7 +1901,7 @@
         selects.forEach(select => {
             const val = select ? select.value : 'N/A';
             if (attendedStatuses.includes(val)) attendedCount++;
-            if (val === 'LATE' || val === 'LATE JUSTIFIED (BACK UP DOC.)') latesCount++;
+            if (val === 'LATE' || val === 'LATE JUSTIFIED (BACK UP DOC.)' || val === 'AUTHORIZED LATE IN') latesCount++;
             if (notPresentStatuses.includes(val)) notPresentCount++;
             if (expectedAbsences.includes(val)) expectedCount++;
             if (unexpectedAbsences.includes(val)) unexpectedCount++;
@@ -2013,11 +2042,11 @@
                     <span id="label-${index}-sup">${escapeHtml(emp.supervisor)}</span>
                     <input type="text" id="input-${index}-sup" class="edit-input" value="${escapeHtml(emp.supervisor)}" style="display:none;">
                 </td>
-                <td class="time-cell">
+                <td class="time-cell ${countryClass}">
                     <span id="label-${index}-in">${escapeHtml(emp.checkIn)}</span>
                     <input type="text" id="input-${index}-in" class="edit-input" value="${escapeHtml(emp.checkIn)}" style="display:none; text-align:center;">
                 </td>
-                <td class="time-cell">
+                <td class="time-cell ${countryClass}">
                     <span id="label-${index}-out">${escapeHtml(emp.checkOut)}</span>
                     <input type="text" id="input-${index}-out" class="edit-input" value="${escapeHtml(emp.checkOut)}" style="display:none; text-align:center;">
                 </td>
@@ -2333,6 +2362,8 @@
             }
         });
 
+        const countryNameStyle = getCountryNameExcelStyle(country);
+
         employees.forEach((emp, rowIndex) => {
             const excelRow = rowIndex + 1;
 
@@ -2361,8 +2392,8 @@
             const checkInAddr = XLSX.utils.encode_cell({ r: excelRow, c: 4 });
             const checkOutAddr = XLSX.utils.encode_cell({ r: excelRow, c: 5 });
             const timeExcelStyle = {
-                fill: { fgColor: { rgb: "F0F0F0" } },
-                font: { bold: true, color: { rgb: "000000" } },
+                fill: { fgColor: { rgb: countryNameStyle.fill } },
+                font: { bold: true, color: { rgb: countryNameStyle.color } },
                 alignment: { horizontal: "center", vertical: "center" }
             };
 
@@ -2412,7 +2443,7 @@
 
     async function loadTeamsTable() {
         const tbody = document.getElementById('teamsTableBody');
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #b0bec5;">Loading team metrics...</td></tr>';
 
         const selectedDate = document.getElementById('teamsDateSelect').value || dateInput.value;
         const countryFilter = document.getElementById('teamsCountryFilter').value;
@@ -2451,6 +2482,7 @@
                         expectedCount: 0,
                         latesCount: 0,
                         notStartedCount: 0,
+                        latesDetails: [],
                         unexpectedDetails: [],
                         expectedDetails: []
                     });
@@ -2480,8 +2512,13 @@
                         comment: commentVal
                     });
                 }
-                if (statusVal === 'LATE' || statusVal === 'LATE JUSTIFIED (BACK UP DOC.)') {
+                if (statusVal === 'LATE' || statusVal === 'LATE JUSTIFIED (BACK UP DOC.)' || statusVal === 'AUTHORIZED LATE IN') {
                     entry.latesCount += 1;
+                    entry.latesDetails.push({
+                        name: emp.name,
+                        reason: statusVal,
+                        comment: commentVal
+                    });
                 }
                 if (statusVal === 'N/A') {
                     entry.notStartedCount += 1;
@@ -2532,7 +2569,7 @@
         currentTeamsRows = teamRows;
 
         if (teamRows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #b0bec5;">No teams with agents in found for the selected filter.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #b0bec5;">No teams with agents in found for the selected filter.</td></tr>';
             return;
         }
 
@@ -2543,6 +2580,16 @@
             const unexpBadgeClass = item.unexpectedPct > 0 ? 'pct-badge pct-alert' : 'pct-badge pct-zero';
             const latesBadgeClass = item.latesPct > 0 ? 'pct-badge pct-warn' : 'pct-badge pct-zero';
             const expBadgeClass = item.expectedPct > 0 ? 'pct-badge pct-expected' : 'pct-badge pct-zero';
+
+            let latesDetailsHtml = '<span style="opacity: 0.6; font-style: italic;">None</span>';
+            if (item.latesDetails.length > 0) {
+                latesDetailsHtml = item.latesDetails.map(d => {
+                    const safeName = escapeHtml(d.name);
+                    const safeReason = escapeHtml(d.reason);
+                    const safeComment = d.comment ? ` (${escapeHtml(d.comment)})` : '';
+                    return `<div class="late-detail-item"><strong>${safeName}</strong> &mdash; <span>${safeReason}${safeComment}</span></div>`;
+                }).join('');
+            }
 
             let unexpectedDetailsHtml = '<span style="opacity: 0.6; font-style: italic;">None</span>';
             if (item.unexpectedDetails.length > 0) {
@@ -2570,6 +2617,7 @@
                 <td style="text-align: center;" title="${item.latesCount} late(s) out of ${item.startedScheduledCount} started/scheduled">
                     <span class="${latesBadgeClass}">${item.latesPct.toFixed(1)}%</span>
                 </td>
+                <td>${latesDetailsHtml}</td>
                 <td style="text-align: center;" title="${item.unexpectedCount} unexpected absence(s) out of ${item.startedScheduledCount} started/scheduled">
                     <span class="${unexpBadgeClass}">${item.unexpectedPct.toFixed(1)}%</span>
                 </td>
@@ -2597,6 +2645,7 @@
             "DEPARTMENT - COUNTRY",
             "NUMBER OF AGENTS IN",
             "% OF LATES",
+            "TYPE OF LATE (AGENT & REASON)",
             "% OF UNEXPECTED ABSENCES",
             "UNEXPECTED ABSENCES (AGENT & REASON)",
             "% OF EXPECTED ABSENCES",
@@ -2627,6 +2676,13 @@
             const unexpStyle = item.unexpectedPct > 0 ? "color: #b91c1c; font-weight: bold;" : "color: #15803d; font-weight: bold;";
             const expStyle = item.expectedPct > 0 ? "color: #1d4ed8; font-weight: bold;" : "color: #15803d; font-weight: bold;";
 
+            const latesHtml = item.latesDetails.length > 0
+                ? item.latesDetails.map(d => {
+                    const c = d.comment ? ` (${escapeHtml(d.comment)})` : '';
+                    return `<strong>${escapeHtml(d.name)}</strong> - ${escapeHtml(d.reason)}${c}`;
+                }).join("<br>")
+                : `<span style="color: #6b7280;">None</span>`;
+
             const unexpHtml = item.unexpectedDetails.length > 0
                 ? item.unexpectedDetails.map(d => {
                     const c = d.comment ? ` (${escapeHtml(d.comment)})` : '';
@@ -2641,6 +2697,10 @@
                 }).join("<br>")
                 : `<span style="color: #6b7280;">None</span>`;
 
+            const latesPlain = item.latesDetails.length > 0
+                ? item.latesDetails.map(d => `${d.name} - ${d.reason}${d.comment ? ` (${d.comment})` : ''}`).join(" | ")
+                : "None";
+
             const unexpPlain = item.unexpectedDetails.length > 0
                 ? item.unexpectedDetails.map(d => `${d.name} - ${d.reason}${d.comment ? ` (${d.comment})` : ''}`).join(" | ")
                 : "None";
@@ -2654,6 +2714,7 @@
                     <td align="center" style="${baseCellStyle} ${deptInlineStyle} font-weight: bold;">${escapeHtml(item.label)}</td>
                     <td align="center" style="${baseCellStyle} background-color: ${rowBg}; color: #000000; font-weight: bold;">${item.agentsIn}</td>
                     <td align="center" style="${baseCellStyle} background-color: ${rowBg}; ${latesStyle}">${latesText}</td>
+                    <td align="center" style="${baseCellStyle} background-color: ${rowBg}; color: #000000;">${latesHtml}</td>
                     <td align="center" style="${baseCellStyle} background-color: ${rowBg}; ${unexpStyle}">${unexpText}</td>
                     <td align="center" style="${baseCellStyle} background-color: ${rowBg}; color: #000000;">${unexpHtml}</td>
                     <td align="center" style="${baseCellStyle} background-color: ${rowBg}; ${expStyle}">${expText}</td>
@@ -2666,6 +2727,7 @@
                 item.label,
                 item.agentsIn,
                 latesText,
+                latesPlain,
                 unexpText,
                 unexpPlain,
                 expText,
@@ -2804,7 +2866,7 @@
         
         const offenderStatuses = [
             "ABSENT", "NO CALL/NO SHOW", "LATE", "LATE JUSTIFIED (BACK UP DOC.)", 
-            "SICK DAY", "EMERGENCY DAY OFF", "EARLY OUT", "DISCIPLINARY SUSPENSION"
+            "SICK DAY", "EMERGENCY DAY OFF", "EARLY OUT", "AUTHORIZED LATE IN", "DISCIPLINARY SUSPENSION"
         ];
 
         const offenderMap = {};
